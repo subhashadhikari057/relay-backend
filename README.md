@@ -2,7 +2,7 @@
 
 <br />
 
-<img src="https://img.shields.io/badge/relay--backend-000000?style=for-the-badge&logoColor=white" alt="Relay Backend" height="40"/>
+<img src="https://img.shields.io/badge/relay--backend-000000?style=for-the-badge&logoColor=white" alt="Relay Backend" height="160"/>
 
 <br /><br />
 
