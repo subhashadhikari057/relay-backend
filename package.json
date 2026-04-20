@@ -22,7 +22,8 @@
     "prisma:migrate:status": "prisma migrate status",
     "prisma:studio": "prisma studio",
     "db:migrate": "pnpm run prisma:migrate:dev",
-    "db:generate": "pnpm run prisma:generate"
+    "db:generate": "pnpm run prisma:generate",
+    "db:studio": "pnpm run prisma:studio"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
