@@ -35,7 +35,10 @@ export function setupApiDocs(app: INestApplication) {
     )
     .build();
 
-  const baseOpenApiDocument = SwaggerModule.createDocument(app, swaggerConfig);
+  const baseOpenApiDocument = SwaggerModule.createDocument(app, swaggerConfig, {
+    operationIdFactory: (controllerKey: string, methodKey: string) =>
+      `${controllerKey}_${methodKey}`,
+  });
   const adminOpenApiDocument = filterDocumentByPrefix(
     baseOpenApiDocument,
     '/api/admin/',
@@ -56,6 +59,9 @@ export function setupApiDocs(app: INestApplication) {
     '/api/api-docs',
     apiReference({
       pageTitle: 'Relay Admin API Docs',
+      operationTitleSource: 'summary',
+      showOperationId: true,
+      hideModels: true,
       content: adminOpenApiDocument,
     }),
   );
@@ -64,6 +70,9 @@ export function setupApiDocs(app: INestApplication) {
     '/api/mobile-docs',
     apiReference({
       pageTitle: 'Relay Mobile API Docs',
+      operationTitleSource: 'summary',
+      showOperationId: true,
+      hideModels: true,
       content: mobileOpenApiDocument,
     }),
   );
