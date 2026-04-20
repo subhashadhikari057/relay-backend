@@ -2,6 +2,7 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { HttpLoggingInterceptor } from './common/interceptors/http-logging.interceptor';
 import { setupApiDocs } from './config/swagger.config';
 
@@ -16,6 +17,7 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
+  app.useGlobalFilters(new GlobalExceptionFilter());
   app.useGlobalInterceptors(new HttpLoggingInterceptor());
   const port = Number(process.env.PORT ?? 3000);
   setupApiDocs(app);
