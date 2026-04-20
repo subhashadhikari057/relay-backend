@@ -12,5 +12,10 @@ export default () => ({
   },
   auth: {
     refreshCookieName: process.env.REFRESH_COOKIE_NAME ?? 'relay_refresh_token',
+    emailVerificationTokenExpiresIn:
+      process.env.EMAIL_VERIFICATION_TOKEN_EXPIRES_IN ?? '20m',
+    emailVerificationUrlBase:
+      process.env.EMAIL_VERIFICATION_URL_BASE ??
+      'http://localhost:3000/verify-email',
   },
 });

@@ -10,6 +10,7 @@ import { LoginMobileDto } from '../../mobile/dto/login-mobile.dto';
 import { SignupMobileDto } from '../../mobile/dto/signup-mobile.dto';
 import { LoginAdminDto } from '../../admin/dto/login-admin.dto';
 import { PasswordService } from './password.service';
+import { EmailVerificationService } from './email-verification.service';
 import { SessionService } from './session.service';
 import { TokenService } from './token.service';
 
@@ -27,6 +28,7 @@ export class AuthService {
     private readonly passwordService: PasswordService,
     private readonly tokenService: TokenService,
     private readonly sessionService: SessionService,
+    private readonly emailVerificationService: EmailVerificationService,
   ) {}
 
   async signupMobile(dto: SignupMobileDto, context: AuthContext) {
@@ -147,6 +149,14 @@ export class AuthService {
     return this.toSafeUser(user);
   }
 
+  requestEmailVerification(userId: string) {
+    return this.emailVerificationService.requestForUser(userId);
+  }
+
+  confirmEmailVerification(rawToken: string) {
+    return this.emailVerificationService.confirm(rawToken);
+  }
+
   private async issueTokensAndSession(user: User, context: AuthContext) {
     const payload = {
       sub: user.id,
@@ -194,6 +204,8 @@ export class AuthService {
       avatarUrl: user.avatarUrl,
       status: user.status,
       isActive: user.isActive,
+      emailVerifiedAt: user.emailVerifiedAt,
+      isEmailVerified: user.emailVerifiedAt !== null,
       platformRole: user.platformRole,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,

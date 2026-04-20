@@ -44,6 +44,18 @@ export class AuthUserResponseDto {
   })
   isActive!: boolean;
 
+  @ApiPropertyOptional({
+    description: 'Timestamp when email was verified. Null when not verified.',
+    example: '2026-04-21T09:10:00.000Z',
+  })
+  emailVerifiedAt!: Date | null;
+
+  @ApiProperty({
+    description: 'Derived email verification status.',
+    example: true,
+  })
+  isEmailVerified!: boolean;
+
   @ApiProperty({
     description: 'Platform-level role.',
     enum: PlatformRole,

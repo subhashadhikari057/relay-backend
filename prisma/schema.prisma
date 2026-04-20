@@ -17,20 +17,22 @@ enum PlatformRole {
 }
 
 model User {
-  id           String       @id @default(uuid()) @db.Uuid
-  email        String       @unique @db.VarChar(255)
-  passwordHash String       @map("password_hash")
-  fullName     String       @map("full_name") @db.VarChar(255)
-  displayName  String?      @map("display_name") @db.VarChar(80)
-  avatarUrl    String?      @map("avatar_url")
-  status       String?      @db.VarChar(100)
-  isActive     Boolean      @default(true) @map("is_active")
-  platformRole PlatformRole @default(user) @map("platform_role")
-  lastLoginAt  DateTime?    @map("last_login_at") @db.Timestamptz(6)
-  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id            String                   @id @default(uuid()) @db.Uuid
+  email         String                   @unique @db.VarChar(255)
+  passwordHash  String                   @map("password_hash")
+  fullName      String                   @map("full_name") @db.VarChar(255)
+  displayName   String?                  @map("display_name") @db.VarChar(80)
+  avatarUrl     String?                  @map("avatar_url")
+  status        String?                  @db.VarChar(100)
+  isActive      Boolean                  @default(true) @map("is_active")
+  platformRole  PlatformRole             @default(user) @map("platform_role")
+  emailVerifiedAt DateTime?              @map("email_verified_at") @db.Timestamptz(6)
+  lastLoginAt   DateTime?                @map("last_login_at") @db.Timestamptz(6)
+  createdAt     DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  sessions Session[]
+  sessions                Session[]
+  emailVerificationTokens EmailVerificationToken[]
 
   @@map("users")
 }
@@ -50,4 +52,19 @@ model Session {
   @@index([userId])
   @@index([expiresAt])
   @@map("sessions")
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
 }

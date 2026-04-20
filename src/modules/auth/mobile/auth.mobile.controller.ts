@@ -21,12 +21,16 @@ import type { Request, Response } from 'express';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { AuthTokenResponseDto } from '../shared/dto/auth-token-response.dto';
 import { AuthUserResponseDto } from '../shared/dto/auth-user-response.dto';
+import { EmailVerificationConfirmResponseDto } from '../shared/dto/email-verification-confirm-response.dto';
+import { EmailVerificationRequestResponseDto } from '../shared/dto/email-verification-request-response.dto';
 import { LogoutResponseDto } from '../shared/dto/logout-response.dto';
 import { AccessTokenGuard } from '../shared/guards/access-token.guard';
 import type { AuthJwtPayload } from '../shared/interfaces/auth-jwt-payload.interface';
 import { AuthCookieService } from '../shared/services/auth-cookie.service';
 import { AuthService } from '../shared/services/auth.service';
+import { ConfirmEmailVerificationDto } from './dto/confirm-email-verification.dto';
 import { LoginMobileDto } from './dto/login-mobile.dto';
+import { RequestEmailVerificationDto } from './dto/request-email-verification.dto';
 import { SignupMobileDto } from './dto/signup-mobile.dto';
 
 @Controller('api/mobile/auth')
@@ -178,5 +182,51 @@ export class MobileAuthController {
   })
   me(@CurrentUser() currentUser: AuthJwtPayload) {
     return this.authService.getMe(currentUser.sub, 'mobile');
+  }
+
+  @Post('verify-email/request')
+  @UseGuards(AccessTokenGuard)
+  @ApiBearerAuth('bearer')
+  @ApiOperation({
+    operationId: 'mobileAuthRequestEmailVerification',
+    summary: 'Request Email Verification',
+    description:
+      'Generate and send a one-time email verification link for authenticated mobile user.',
+  })
+  @ApiBody({
+    type: RequestEmailVerificationDto,
+    description: 'Verification request payload.',
+  })
+  @ApiOkResponse({
+    type: EmailVerificationRequestResponseDto,
+    description: 'Email verification request was accepted.',
+  })
+  requestEmailVerification(@CurrentUser() currentUser: AuthJwtPayload) {
+    return this.authService.requestEmailVerification(currentUser.sub);
+  }
+
+  @Post('verify-email/confirm')
+  @ApiOperation({
+    operationId: 'mobileAuthConfirmEmailVerification',
+    summary: 'Confirm Email Verification',
+    description:
+      'Confirm user email using one-time token from verification link.',
+  })
+  @ApiBody({
+    type: ConfirmEmailVerificationDto,
+    description: 'Verification token payload.',
+  })
+  @ApiOkResponse({
+    type: EmailVerificationConfirmResponseDto,
+    description: 'Email verification completed successfully.',
+  })
+  async confirmEmailVerification(@Body() dto: ConfirmEmailVerificationDto) {
+    const result = await this.authService.confirmEmailVerification(dto.token);
+
+    return {
+      success: true,
+      isEmailVerified: result.isEmailVerified,
+      emailVerifiedAt: result.emailVerifiedAt,
+    };
   }
 }
