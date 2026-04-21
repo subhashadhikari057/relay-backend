@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CookieOptions, Response } from 'express';
 import { TokenService } from './token.service';
@@ -62,6 +62,27 @@ export class AuthCookieService {
     const token = cookies?.[cookieName];
 
     return typeof token === 'string' ? token : null;
+  }
+
+  setAuthCookies(response: Response, refreshToken: string, sessionId: string) {
+    this.setRefreshTokenCookie(response, refreshToken);
+    this.setSessionIdCookie(response, sessionId);
+  }
+
+  clearAuthCookies(response: Response) {
+    this.clearRefreshTokenCookie(response);
+    this.clearSessionIdCookie(response);
+  }
+
+  getRefreshCookiePairOrThrow(cookies: Record<string, unknown> | undefined) {
+    const refreshToken = this.getRefreshTokenFromCookies(cookies);
+    const sessionId = this.getSessionIdFromCookies(cookies);
+
+    if (!refreshToken || !sessionId) {
+      throw new UnauthorizedException('Missing refresh token or sid cookie');
+    }
+
+    return { refreshToken, sessionId };
   }
 
   private getBaseCookieOptions(): CookieOptions {

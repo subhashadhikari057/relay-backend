@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { OrganizationInvite, OrganizationRole, Prisma } from '@prisma/client';
 import { createHash, randomBytes } from 'crypto';
+import { toSkipTake } from 'src/common/utils/pagination.util';
 import { AuditService } from 'src/modules/audit/audit.service';
 import { MobileOrganizationActivityQueryDto } from 'src/modules/audit/dto/mobile-organization-activity-query.dto';
 import { AuditEventFactory } from 'src/modules/audit/shared/audit-event-factory.service';
@@ -23,9 +24,6 @@ import { ListMyOrganizationsDto } from './dto/list-my-organizations.dto';
 import { TransferOrganizationOwnershipDto } from './dto/transfer-organization-ownership.dto';
 import { UpdateOrganizationMemberRoleDto } from './dto/update-organization-member-role.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
-
-const DEFAULT_PAGE = 1;
-const DEFAULT_LIMIT = 20;
 
 @Injectable()
 export class OrganizationMobileService {
@@ -85,7 +83,7 @@ export class OrganizationMobileService {
   }
 
   async listMyOrganizations(userId: string, query: ListMyOrganizationsDto) {
-    const { skip, take } = this.getPagination(query.page, query.limit);
+    const { skip, take } = toSkipTake(query.page, query.limit);
 
     const memberships = await this.prisma.organizationMember.findMany({
       where: {
@@ -851,16 +849,6 @@ export class OrganizationMobileService {
     }
 
     return membership;
-  }
-
-  private getPagination(page?: number, limit?: number) {
-    const normalizedPage = page ?? DEFAULT_PAGE;
-    const normalizedLimit = limit ?? DEFAULT_LIMIT;
-
-    return {
-      skip: (normalizedPage - 1) * normalizedLimit,
-      take: normalizedLimit,
-    };
   }
 
   private async generateUniqueSlug(name: string) {

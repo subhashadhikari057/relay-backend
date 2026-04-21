@@ -29,6 +29,14 @@ type AuditRow = {
   createdAt: Date;
 };
 
+type AuditListFilters = {
+  organizationId?: string;
+  actorUserId?: string;
+  action?: AuditAction;
+  from?: string;
+  to?: string;
+};
+
 @Injectable()
 export class AuditService {
   private readonly logger = new Logger(AuditService.name);
@@ -94,9 +102,55 @@ export class AuditService {
   }
 
   async listAdminAudit(query: AdminAuditQueryDto, organizationId?: string) {
-    const page = query.page ?? DEFAULT_PAGE;
-    const limit = query.limit ?? DEFAULT_LIMIT;
+    if (
+      organizationId &&
+      query.organizationId &&
+      organizationId !== query.organizationId
+    ) {
+      const normalizedPage = query.page ?? DEFAULT_PAGE;
+      const normalizedLimit = query.limit ?? DEFAULT_LIMIT;
+      return {
+        count: 0,
+        page: normalizedPage,
+        limit: normalizedLimit,
+        items: [],
+      };
+    }
 
+    return this.listAuditPage(
+      {
+        organizationId: organizationId ?? query.organizationId,
+        actorUserId: query.actorUserId,
+        action: query.action,
+        from: query.from,
+        to: query.to,
+      },
+      query.page,
+      query.limit,
+    );
+  }
+
+  async listMyAudit(userId: string, query: MobileMyAuditQueryDto) {
+    return this.listAuditPage(
+      {
+        actorUserId: userId,
+        organizationId: query.organizationId,
+        action: query.action,
+        from: query.from,
+        to: query.to,
+      },
+      query.page,
+      query.limit,
+    );
+  }
+
+  private async listAuditPage(
+    filters: AuditListFilters,
+    page?: number,
+    limit?: number,
+  ) {
+    const normalizedPage = page ?? DEFAULT_PAGE;
+    const normalizedLimit = limit ?? DEFAULT_LIMIT;
     const whereClauses: string[] = [];
     const params: unknown[] = [];
     const pushParam = (value: unknown) => {
@@ -104,32 +158,29 @@ export class AuditService {
       return `$${params.length}`;
     };
 
-    if (organizationId) {
-      whereClauses.push(`organization_id = ${pushParam(organizationId)}`);
+    if (filters.organizationId) {
+      whereClauses.push(
+        `organization_id = ${pushParam(filters.organizationId)}`,
+      );
     }
-    if (query.organizationId) {
-      whereClauses.push(`organization_id = ${pushParam(query.organizationId)}`);
+    if (filters.actorUserId) {
+      whereClauses.push(`actor_user_id = ${pushParam(filters.actorUserId)}`);
     }
-    if (query.actorUserId) {
-      whereClauses.push(`actor_user_id = ${pushParam(query.actorUserId)}`);
+    if (filters.action) {
+      whereClauses.push(`action = ${pushParam(filters.action)}`);
     }
-    if (query.action) {
-      whereClauses.push(`action = ${pushParam(query.action)}`);
+    if (filters.from) {
+      whereClauses.push(`created_at >= ${pushParam(new Date(filters.from))}`);
     }
-    if (query.from) {
-      whereClauses.push(`created_at >= ${pushParam(new Date(query.from))}`);
-    }
-    if (query.to) {
-      whereClauses.push(`created_at <= ${pushParam(new Date(query.to))}`);
+    if (filters.to) {
+      whereClauses.push(`created_at <= ${pushParam(new Date(filters.to))}`);
     }
 
     const whereSql =
       whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
-
-    const offset = (page - 1) * limit;
-    const limitPlaceholder = pushParam(limit);
+    const offset = (normalizedPage - 1) * normalizedLimit;
+    const limitPlaceholder = pushParam(normalizedLimit);
     const offsetPlaceholder = pushParam(offset);
-
     const sql = `SELECT
       id,
       organization_id as "organizationId",
@@ -149,64 +200,8 @@ export class AuditService {
 
     return {
       count: items.length,
-      page,
-      limit,
-      items: items.map((item) => this.toAuditItemDto(item)),
-    };
-  }
-
-  async listMyAudit(userId: string, query: MobileMyAuditQueryDto) {
-    const page = query.page ?? DEFAULT_PAGE;
-    const limit = query.limit ?? DEFAULT_LIMIT;
-
-    const whereClauses: string[] = [];
-    const params: unknown[] = [];
-    const pushParam = (value: unknown) => {
-      params.push(value);
-      return `$${params.length}`;
-    };
-
-    whereClauses.push(`actor_user_id = ${pushParam(userId)}`);
-
-    if (query.organizationId) {
-      whereClauses.push(`organization_id = ${pushParam(query.organizationId)}`);
-    }
-    if (query.action) {
-      whereClauses.push(`action = ${pushParam(query.action)}`);
-    }
-    if (query.from) {
-      whereClauses.push(`created_at >= ${pushParam(new Date(query.from))}`);
-    }
-    if (query.to) {
-      whereClauses.push(`created_at <= ${pushParam(new Date(query.to))}`);
-    }
-
-    const whereSql = `WHERE ${whereClauses.join(' AND ')}`;
-    const offset = (page - 1) * limit;
-    const limitPlaceholder = pushParam(limit);
-    const offsetPlaceholder = pushParam(offset);
-
-    const sql = `SELECT
-      id,
-      organization_id as "organizationId",
-      actor_user_id as "actorUserId",
-      action,
-      entity_type as "entityType",
-      entity_id as "entityId",
-      metadata,
-      created_at as "createdAt"
-    FROM "audit_logs"
-    ${whereSql}
-    ORDER BY created_at DESC
-    LIMIT ${limitPlaceholder}
-    OFFSET ${offsetPlaceholder}`;
-
-    const items = await this.prisma.$queryRawUnsafe<AuditRow[]>(sql, ...params);
-
-    return {
-      count: items.length,
-      page,
-      limit,
+      page: normalizedPage,
+      limit: normalizedLimit,
       items: items.map((item) => this.toAuditItemDto(item)),
     };
   }

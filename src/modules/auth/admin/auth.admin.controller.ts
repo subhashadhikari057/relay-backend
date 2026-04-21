@@ -7,7 +7,6 @@ import {
   Post,
   Req,
   Res,
-  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { PlatformRole } from '@prisma/client';
@@ -30,6 +29,8 @@ import { PlatformRoleGuard } from '../shared/guards/platform-role.guard';
 import type { AuthJwtPayload } from '../shared/interfaces/auth-jwt-payload.interface';
 import { AuthCookieService } from '../shared/services/auth-cookie.service';
 import { AuthService } from '../shared/services/auth.service';
+import { toAuthTokenResponse } from '../shared/utils/auth-response.util';
+import { revokeSessionFromCookieIfPresent } from '../shared/utils/auth-session.util';
 import { LoginAdminDto } from './dto/login-admin.dto';
 
 @Controller('api/admin/auth')
@@ -63,13 +64,12 @@ export class AdminAuthController {
       ipAddress,
     });
 
-    this.authCookieService.setRefreshTokenCookie(response, result.refreshToken);
-    this.authCookieService.setSessionIdCookie(response, result.sessionId);
-
-    return {
-      accessToken: result.accessToken,
-      user: result.user,
-    };
+    this.authCookieService.setAuthCookies(
+      response,
+      result.refreshToken,
+      result.sessionId,
+    );
+    return toAuthTokenResponse(result);
   }
 
   @Post('refresh')
@@ -91,16 +91,8 @@ export class AdminAuthController {
     @Ip() ipAddress: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const refreshToken = this.authCookieService.getRefreshTokenFromCookies(
-      request.cookies,
-    );
-    const sessionId = this.authCookieService.getSessionIdFromCookies(
-      request.cookies,
-    );
-
-    if (!refreshToken || !sessionId) {
-      throw new UnauthorizedException('Missing refresh token or sid cookie');
-    }
+    const { refreshToken, sessionId } =
+      this.authCookieService.getRefreshCookiePairOrThrow(request.cookies);
 
     const result = await this.authService.refresh(
       sessionId,
@@ -112,13 +104,12 @@ export class AdminAuthController {
       },
     );
 
-    this.authCookieService.setRefreshTokenCookie(response, result.refreshToken);
-    this.authCookieService.setSessionIdCookie(response, result.sessionId);
-
-    return {
-      accessToken: result.accessToken,
-      user: result.user,
-    };
+    this.authCookieService.setAuthCookies(
+      response,
+      result.refreshToken,
+      result.sessionId,
+    );
+    return toAuthTokenResponse(result);
   }
 
   @Post('logout')
@@ -137,16 +128,14 @@ export class AdminAuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const sessionId = this.authCookieService.getSessionIdFromCookies(
-      request.cookies,
+    await revokeSessionFromCookieIfPresent(
+      request,
+      'admin',
+      this.authService,
+      this.authCookieService,
     );
 
-    if (sessionId) {
-      await this.authService.logout(sessionId, 'admin');
-    }
-
-    this.authCookieService.clearRefreshTokenCookie(response);
-    this.authCookieService.clearSessionIdCookie(response);
+    this.authCookieService.clearAuthCookies(response);
 
     return { success: true };
   }

@@ -79,8 +79,8 @@ describe('AuditService', () => {
     expect(queryRawUnsafe).toHaveBeenCalledTimes(1);
     const [sql] = queryRawUnsafe.mock.calls[0] as [string, ...unknown[]];
     expect(sql).toContain('FROM "audit_logs"');
-    expect(sql).toContain('actor_user_id = $1');
-    expect(sql).toContain('organization_id = $2');
+    expect(sql).toContain('organization_id = $1');
+    expect(sql).toContain('actor_user_id = $2');
     expect(sql).toContain('LIMIT');
     expect(sql).toContain('OFFSET');
   });

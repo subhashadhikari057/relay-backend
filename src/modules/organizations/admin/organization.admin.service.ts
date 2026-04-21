@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { OrganizationInvite, Prisma } from '@prisma/client';
+import { toSkipTake } from 'src/common/utils/pagination.util';
 import { AuditService } from 'src/modules/audit/audit.service';
 import { AuditEventFactory } from 'src/modules/audit/shared/audit-event-factory.service';
 import {
@@ -18,9 +19,6 @@ import { AdminOrganizationStatusDto } from './dto/admin-organization-status.dto'
 import { ListAdminOrganizationsDto } from './dto/list-admin-organizations.dto';
 import { OrganizationPolicyService } from '../shared/services/organization-policy.service';
 
-const DEFAULT_PAGE = 1;
-const DEFAULT_LIMIT = 20;
-
 @Injectable()
 export class OrganizationAdminService {
   private readonly logger = new Logger(OrganizationAdminService.name);
@@ -33,7 +31,7 @@ export class OrganizationAdminService {
   ) {}
 
   async listOrganizationsForAdmin(query: ListAdminOrganizationsDto) {
-    const { skip, take } = this.getPagination(query.page, query.limit);
+    const { skip, take } = toSkipTake(query.page, query.limit);
 
     const where: Prisma.OrganizationWhereInput = {
       ...(query.isActive !== undefined ? { isActive: query.isActive } : {}),
@@ -396,16 +394,6 @@ export class OrganizationAdminService {
     }
 
     return organization;
-  }
-
-  private getPagination(page?: number, limit?: number) {
-    const normalizedPage = page ?? DEFAULT_PAGE;
-    const normalizedLimit = limit ?? DEFAULT_LIMIT;
-
-    return {
-      skip: (normalizedPage - 1) * normalizedLimit,
-      take: normalizedLimit,
-    };
   }
 
   private getInviteStatus(

@@ -178,8 +178,6 @@ Audience split convention inside every domain:
 5. **Secure by default** — auth guards, rate limiting, helmet headers, input sanitization
 6. **Scalable without over-engineering** — simple now, extensible later
 
----
-
 ## Getting Started
 
 ### Prerequisites

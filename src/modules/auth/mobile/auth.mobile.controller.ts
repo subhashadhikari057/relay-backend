@@ -10,7 +10,6 @@ import {
   Post,
   Req,
   Res,
-  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -34,6 +33,8 @@ import { AccessTokenGuard } from '../shared/guards/access-token.guard';
 import type { AuthJwtPayload } from '../shared/interfaces/auth-jwt-payload.interface';
 import { AuthCookieService } from '../shared/services/auth-cookie.service';
 import { AuthService } from '../shared/services/auth.service';
+import { toAuthTokenResponse } from '../shared/utils/auth-response.util';
+import { revokeSessionFromCookieIfPresent } from '../shared/utils/auth-session.util';
 import { ConfirmEmailVerificationDto } from './dto/confirm-email-verification.dto';
 import { LoginMobileDto } from './dto/login-mobile.dto';
 import { RequestEmailVerificationDto } from './dto/request-email-verification.dto';
@@ -70,13 +71,12 @@ export class MobileAuthController {
       ipAddress,
     });
 
-    this.authCookieService.setRefreshTokenCookie(response, result.refreshToken);
-    this.authCookieService.setSessionIdCookie(response, result.sessionId);
-
-    return {
-      accessToken: result.accessToken,
-      user: result.user,
-    };
+    this.authCookieService.setAuthCookies(
+      response,
+      result.refreshToken,
+      result.sessionId,
+    );
+    return toAuthTokenResponse(result);
   }
 
   @Post('login')
@@ -102,13 +102,12 @@ export class MobileAuthController {
       ipAddress,
     });
 
-    this.authCookieService.setRefreshTokenCookie(response, result.refreshToken);
-    this.authCookieService.setSessionIdCookie(response, result.sessionId);
-
-    return {
-      accessToken: result.accessToken,
-      user: result.user,
-    };
+    this.authCookieService.setAuthCookies(
+      response,
+      result.refreshToken,
+      result.sessionId,
+    );
+    return toAuthTokenResponse(result);
   }
 
   @Post('refresh')
@@ -130,16 +129,8 @@ export class MobileAuthController {
     @Ip() ipAddress: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const refreshToken = this.authCookieService.getRefreshTokenFromCookies(
-      request.cookies,
-    );
-    const sessionId = this.authCookieService.getSessionIdFromCookies(
-      request.cookies,
-    );
-
-    if (!refreshToken || !sessionId) {
-      throw new UnauthorizedException('Missing refresh token or sid cookie');
-    }
+    const { refreshToken, sessionId } =
+      this.authCookieService.getRefreshCookiePairOrThrow(request.cookies);
 
     const result = await this.authService.refresh(
       sessionId,
@@ -151,13 +142,12 @@ export class MobileAuthController {
       },
     );
 
-    this.authCookieService.setRefreshTokenCookie(response, result.refreshToken);
-    this.authCookieService.setSessionIdCookie(response, result.sessionId);
-
-    return {
-      accessToken: result.accessToken,
-      user: result.user,
-    };
+    this.authCookieService.setAuthCookies(
+      response,
+      result.refreshToken,
+      result.sessionId,
+    );
+    return toAuthTokenResponse(result);
   }
 
   @Post('logout')
@@ -176,16 +166,14 @@ export class MobileAuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const sessionId = this.authCookieService.getSessionIdFromCookies(
-      request.cookies,
+    await revokeSessionFromCookieIfPresent(
+      request,
+      'mobile',
+      this.authService,
+      this.authCookieService,
     );
 
-    if (sessionId) {
-      await this.authService.logout(sessionId, 'mobile');
-    }
-
-    this.authCookieService.clearRefreshTokenCookie(response);
-    this.authCookieService.clearSessionIdCookie(response);
+    this.authCookieService.clearAuthCookies(response);
 
     return { success: true };
   }
