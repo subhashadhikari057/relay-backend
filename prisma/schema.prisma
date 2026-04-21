@@ -16,6 +16,13 @@ enum PlatformRole {
   user
 }
 
+enum OrganizationRole {
+  owner
+  admin
+  member
+  guest
+}
+
 model User {
   id            String                   @id @default(uuid()) @db.Uuid
   email         String                   @unique @db.VarChar(255)
@@ -33,6 +40,10 @@ model User {
 
   sessions                Session[]
   emailVerificationTokens EmailVerificationToken[]
+  organizationsCreated    Organization[]      @relation("organization_created_by")
+  organizationMemberships OrganizationMember[] @relation("organization_member_user")
+  organizationInvitesSent OrganizationInvite[] @relation("organization_invited_by")
+  organizationMembershipInvites OrganizationMember[] @relation("organization_member_invited_by")
 
   @@map("users")
 }
@@ -69,4 +80,68 @@ model EmailVerificationToken {
   @@index([userId])
   @@index([expiresAt])
   @@map("email_verification_tokens")
+}
+
+model Organization {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(120)
+  slug        String   @unique @db.VarChar(80)
+  description String?  @db.VarChar(500)
+  avatarUrl   String?  @map("avatar_url")
+  isActive    Boolean  @default(true) @map("is_active")
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdById String   @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  createdBy User                 @relation("organization_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  members   OrganizationMember[]
+  invites   OrganizationInvite[]
+
+  @@index([createdById])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  userId         String           @map("user_id") @db.Uuid
+  role           OrganizationRole @default(member)
+  joinedAt       DateTime         @default(now()) @map("joined_at") @db.Timestamptz(6)
+  invitedById    String?          @map("invited_by_id") @db.Uuid
+  isActive       Boolean          @default(true) @map("is_active")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation("organization_member_user", fields: [userId], references: [id], onDelete: Cascade)
+  invitedBy    User?        @relation("organization_member_invited_by", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId, role])
+  @@index([isActive])
+  @@map("organization_members")
+}
+
+model OrganizationInvite {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  email          String           @db.Citext
+  role           OrganizationRole @default(member)
+  tokenHash      String           @unique @map("token_hash")
+  invitedById    String           @map("invited_by_id") @db.Uuid
+  expiresAt      DateTime         @map("expires_at") @db.Timestamptz(6)
+  acceptedAt     DateTime?        @map("accepted_at") @db.Timestamptz(6)
+  revokedAt      DateTime?        @map("revoked_at") @db.Timestamptz(6)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy    User         @relation("organization_invited_by", fields: [invitedById], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+  @@index([email])
+  @@index([expiresAt])
+  @@map("organization_invites")
 }
