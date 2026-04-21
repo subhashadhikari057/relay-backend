@@ -7,13 +7,18 @@ import {
 } from '@nestjs/common';
 import { OrganizationInvite, OrganizationRole, Prisma } from '@prisma/client';
 import { createHash, randomBytes } from 'crypto';
+import { AuditService } from 'src/modules/audit/audit.service';
+import { MobileOrganizationActivityQueryDto } from 'src/modules/audit/dto/mobile-organization-activity-query.dto';
+import { AuditEventFactory } from 'src/modules/audit/shared/audit-event-factory.service';
+import {
+  AuditAction,
+  AuditEntityType,
+} from 'src/modules/audit/shared/audit.constants';
 import type { AuthJwtPayload } from 'src/modules/auth/shared/interfaces/auth-jwt-payload.interface';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { OrganizationPolicyService } from '../shared/services/organization-policy.service';
-import { AcceptOrganizationInviteDto } from './dto/accept-organization-invite.dto';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { InviteOrganizationMemberDto } from './dto/invite-organization-member.dto';
-import { ListOrganizationActivityDto } from './dto/list-organization-activity.dto';
 import { ListMyOrganizationsDto } from './dto/list-my-organizations.dto';
 import { TransferOrganizationOwnershipDto } from './dto/transfer-organization-ownership.dto';
 import { UpdateOrganizationMemberRoleDto } from './dto/update-organization-member-role.dto';
@@ -27,6 +32,8 @@ export class OrganizationMobileService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly organizationPolicyService: OrganizationPolicyService,
+    private readonly auditService: AuditService,
+    private readonly auditEventFactory: AuditEventFactory,
   ) {}
 
   async createOrganization(userId: string, dto: CreateOrganizationDto) {
@@ -56,6 +63,16 @@ export class OrganizationMobileService {
 
       return created;
     });
+
+    await this.auditService.recordSafe(
+      this.auditEventFactory.build({
+        organizationId: organization.id,
+        actorUserId: userId,
+        action: AuditAction.ORGANIZATION_CREATED,
+        entityType: AuditEntityType.ORGANIZATION,
+        entityId: organization.id,
+      }),
+    );
 
     return {
       id: organization.id,
@@ -213,6 +230,16 @@ export class OrganizationMobileService {
       data,
     });
 
+    await this.auditService.recordSafe(
+      this.auditEventFactory.build({
+        organizationId,
+        actorUserId: userId,
+        action: AuditAction.ORGANIZATION_PROFILE_UPDATED,
+        entityType: AuditEntityType.ORGANIZATION,
+        entityId: organizationId,
+      }),
+    );
+
     return {
       id: updated.id,
       name: updated.name,
@@ -300,6 +327,20 @@ export class OrganizationMobileService {
       },
     });
 
+    await this.auditService.recordSafe(
+      this.auditEventFactory.build({
+        organizationId,
+        actorUserId: user.sub,
+        action: AuditAction.ORGANIZATION_INVITE_CREATED,
+        entityType: AuditEntityType.ORGANIZATION_INVITE,
+        entityId: invite.id,
+        metadata: {
+          email: normalizedEmail,
+          role: invite.role,
+        },
+      }),
+    );
+
     return {
       inviteId: invite.id,
       inviteToken,
@@ -347,7 +388,8 @@ export class OrganizationMobileService {
         revokedAt: invite.revokedAt,
         createdAt: invite.createdAt,
         invitedById: invite.invitedBy.id,
-        invitedByName: invite.invitedBy.displayName ?? invite.invitedBy.fullName,
+        invitedByName:
+          invite.invitedBy.displayName ?? invite.invitedBy.fullName,
       })),
     };
   }
@@ -393,6 +435,16 @@ export class OrganizationMobileService {
         revokedAt: new Date(),
       },
     });
+
+    await this.auditService.recordSafe(
+      this.auditEventFactory.build({
+        organizationId,
+        actorUserId: userId,
+        action: AuditAction.ORGANIZATION_INVITE_REVOKED,
+        entityType: AuditEntityType.ORGANIZATION_INVITE,
+        entityId: invite.id,
+      }),
+    );
 
     return { success: true };
   }
@@ -493,6 +545,16 @@ export class OrganizationMobileService {
       });
     });
 
+    await this.auditService.recordSafe(
+      this.auditEventFactory.build({
+        organizationId: invite.organizationId,
+        actorUserId: user.sub,
+        action: AuditAction.ORGANIZATION_INVITE_ACCEPTED,
+        entityType: AuditEntityType.ORGANIZATION_INVITE,
+        entityId: invite.id,
+      }),
+    );
+
     return {
       success: true,
       organizationId: invite.organizationId,
@@ -568,100 +630,13 @@ export class OrganizationMobileService {
   async getOrganizationActivity(
     userId: string,
     organizationId: string,
-    query: ListOrganizationActivityDto,
+    query: MobileOrganizationActivityQueryDto,
   ) {
     await this.organizationPolicyService.resolveMembershipOrThrow(
       userId,
       organizationId,
     );
-
-    const limit = query.limit ?? 25;
-
-    const [invites, members] = await Promise.all([
-      this.prisma.organizationInvite.findMany({
-        where: { organizationId },
-        select: {
-          id: true,
-          email: true,
-          role: true,
-          createdAt: true,
-          acceptedAt: true,
-          revokedAt: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        take: limit,
-      }),
-      this.prisma.organizationMember.findMany({
-        where: {
-          organizationId,
-          isActive: true,
-        },
-        select: {
-          userId: true,
-          role: true,
-          joinedAt: true,
-        },
-        orderBy: { joinedAt: 'desc' },
-        take: limit,
-      }),
-    ]);
-
-    const activities: Array<{
-      type: 'invite_created' | 'invite_accepted' | 'invite_revoked' | 'member_joined';
-      at: Date;
-      userId: string | null;
-      inviteId: string | null;
-      note: string | null;
-    }> = [];
-
-    for (const invite of invites) {
-      activities.push({
-        type: 'invite_created',
-        at: invite.createdAt,
-        userId: null,
-        inviteId: invite.id,
-        note: invite.email,
-      });
-
-      if (invite.acceptedAt) {
-        activities.push({
-          type: 'invite_accepted',
-          at: invite.acceptedAt,
-          userId: null,
-          inviteId: invite.id,
-          note: invite.email,
-        });
-      }
-
-      if (invite.revokedAt) {
-        activities.push({
-          type: 'invite_revoked',
-          at: invite.revokedAt,
-          userId: null,
-          inviteId: invite.id,
-          note: invite.email,
-        });
-      }
-    }
-
-    for (const member of members) {
-      activities.push({
-        type: 'member_joined',
-        at: member.joinedAt,
-        userId: member.userId,
-        inviteId: null,
-        note: member.role,
-      });
-    }
-
-    const sorted = activities
-      .sort((a, b) => b.at.getTime() - a.at.getTime())
-      .slice(0, limit);
-
-    return {
-      count: sorted.length,
-      activities: sorted,
-    };
+    return this.auditService.listOrganizationActivity(organizationId, query);
   }
 
   async updateMemberRole(
@@ -701,6 +676,17 @@ export class OrganizationMobileService {
       },
     });
 
+    await this.auditService.recordSafe(
+      this.auditEventFactory.build({
+        organizationId,
+        actorUserId: userId,
+        action: AuditAction.ORGANIZATION_MEMBER_ROLE_UPDATED,
+        entityType: AuditEntityType.ORGANIZATION_MEMBER,
+        entityId: updated.id,
+        metadata: { targetUserId, role: updated.role },
+      }),
+    );
+
     return {
       success: true,
       role: updated.role,
@@ -737,6 +723,17 @@ export class OrganizationMobileService {
       where: { id: targetMembership.id },
       data: { isActive: false },
     });
+
+    await this.auditService.recordSafe(
+      this.auditEventFactory.build({
+        organizationId,
+        actorUserId: userId,
+        action: AuditAction.ORGANIZATION_MEMBER_REMOVED,
+        entityType: AuditEntityType.ORGANIZATION_MEMBER,
+        entityId: targetMembership.id,
+        metadata: { targetUserId },
+      }),
+    );
 
     return {
       success: true,
@@ -787,6 +784,17 @@ export class OrganizationMobileService {
       });
     });
 
+    await this.auditService.recordSafe(
+      this.auditEventFactory.build({
+        organizationId,
+        actorUserId: userId,
+        action: AuditAction.ORGANIZATION_OWNERSHIP_TRANSFERRED,
+        entityType: AuditEntityType.ORGANIZATION,
+        entityId: organizationId,
+        metadata: { newOwnerUserId: dto.newOwnerUserId },
+      }),
+    );
+
     return {
       success: true,
       previousOwnerUserId: userId,
@@ -811,6 +819,16 @@ export class OrganizationMobileService {
         isActive: false,
       },
     });
+
+    await this.auditService.recordSafe(
+      this.auditEventFactory.build({
+        organizationId,
+        actorUserId: userId,
+        action: AuditAction.ORGANIZATION_MEMBER_LEFT,
+        entityType: AuditEntityType.ORGANIZATION_MEMBER,
+        entityId: membership.id,
+      }),
+    );
 
     return { success: true };
   }

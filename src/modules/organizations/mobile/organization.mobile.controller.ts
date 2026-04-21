@@ -17,12 +17,13 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { MobileOrganizationActivityQueryDto } from 'src/modules/audit/dto/mobile-organization-activity-query.dto';
+import { MobileOrganizationActivityResponseDto } from 'src/modules/audit/dto/mobile-organization-activity-response.dto';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { AccessTokenGuard } from 'src/modules/auth/shared/guards/access-token.guard';
 import type { AuthJwtPayload } from 'src/modules/auth/shared/interfaces/auth-jwt-payload.interface';
 import { OrgRoles } from '../shared/decorators/org-roles.decorator';
 import { BasicSuccessResponseDto } from '../shared/dto/basic-success-response.dto';
-import { OrganizationActivityResponseDto } from '../shared/dto/organization-activity-response.dto';
 import { OrganizationInviteResponseDto } from '../shared/dto/organization-invite-response.dto';
 import { OrganizationInvitesResponseDto } from '../shared/dto/organization-invites-response.dto';
 import { OrganizationListResponseDto } from '../shared/dto/organization-list-response.dto';
@@ -35,7 +36,6 @@ import { OrganizationMobileService } from './organization.mobile.service';
 import { AcceptOrganizationInviteDto } from './dto/accept-organization-invite.dto';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { InviteOrganizationMemberDto } from './dto/invite-organization-member.dto';
-import { ListOrganizationActivityDto } from './dto/list-organization-activity.dto';
 import { ListMyOrganizationsDto } from './dto/list-my-organizations.dto';
 import { OrganizationInviteAcceptResponseDto } from './dto/organization-invite-accept-response.dto';
 import { TransferOrganizationOwnershipDto } from './dto/transfer-organization-ownership.dto';
@@ -71,7 +71,10 @@ export class MobileOrganizationController {
     @CurrentUser() currentUser: AuthJwtPayload,
     @Body() dto: CreateOrganizationDto,
   ) {
-    return this.organizationMobileService.createOrganization(currentUser.sub, dto);
+    return this.organizationMobileService.createOrganization(
+      currentUser.sub,
+      dto,
+    );
   }
 
   @Get()
@@ -337,13 +340,13 @@ export class MobileOrganizationController {
     description: 'Get recent organization activity timeline.',
   })
   @ApiOkResponse({
-    type: OrganizationActivityResponseDto,
+    type: MobileOrganizationActivityResponseDto,
     description: 'Organization activity returned successfully.',
   })
   activity(
     @CurrentUser() currentUser: AuthJwtPayload,
     @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
-    @Query() query: ListOrganizationActivityDto,
+    @Query() query: MobileOrganizationActivityQueryDto,
   ) {
     return this.organizationMobileService.getOrganizationActivity(
       currentUser.sub,

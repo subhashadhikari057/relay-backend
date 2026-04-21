@@ -72,6 +72,8 @@ describe('AuthService collision retry', () => {
       { notifySessionEvicted: jest.fn() } as never,
       {} as never,
       { getOrThrow: configGetOrThrowMock } as never,
+      { recordSafe: jest.fn() } as never,
+      { build: jest.fn() },
     );
 
     const result = await service.login(
@@ -133,6 +135,8 @@ describe('AuthService collision retry', () => {
       { notifySessionEvicted: jest.fn() } as never,
       {} as never,
       { getOrThrow: configGetOrThrowMock } as never,
+      { recordSafe: jest.fn() } as never,
+      { build: jest.fn() },
     );
 
     const result = await service.refresh(
@@ -201,6 +205,8 @@ describe('AuthService collision retry', () => {
       { notifySessionEvicted: notifySessionEvictedMock } as never,
       {} as never,
       { getOrThrow: configGetOrThrowMock } as never,
+      { recordSafe: jest.fn() } as never,
+      { build: jest.fn() },
     );
 
     const result = await service.login(

@@ -7,6 +7,12 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PlatformRole, User } from '@prisma/client';
+import { AuditService } from 'src/modules/audit/audit.service';
+import { AuditEventFactory } from 'src/modules/audit/shared/audit-event-factory.service';
+import {
+  AuditAction,
+  AuditEntityType,
+} from 'src/modules/audit/shared/audit.constants';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { LoginMobileDto } from '../../mobile/dto/login-mobile.dto';
 import { SignupMobileDto } from '../../mobile/dto/signup-mobile.dto';
@@ -36,6 +42,8 @@ export class AuthService {
     private readonly sessionNotificationService: SessionNotificationService,
     private readonly emailVerificationService: EmailVerificationService,
     private readonly configService: ConfigService,
+    private readonly auditService: AuditService,
+    private readonly auditEventFactory: AuditEventFactory,
   ) {}
 
   async signupMobile(dto: SignupMobileDto, context: AuthContext) {
@@ -93,6 +101,20 @@ export class AuthService {
       data: { lastLoginAt: new Date() },
     });
 
+    await this.auditService.recordSafe(
+      this.auditEventFactory.build({
+        actorUserId: user.id,
+        action: AuditAction.AUTH_LOGIN_SUCCEEDED,
+        entityType: AuditEntityType.USER,
+        entityId: user.id,
+        metadata: {
+          audience,
+          ipAddress: context.ipAddress ?? null,
+          deviceInfo: context.deviceInfo ?? null,
+        },
+      }),
+    );
+
     return this.issueTokensAndSession(user, context);
   }
 
@@ -127,6 +149,15 @@ export class AuthService {
 
     if (!isRefreshTokenMatch) {
       await this.sessionService.revokeById(session.id);
+      await this.auditService.recordSafe(
+        this.auditEventFactory.build({
+          actorUserId: user.id,
+          action: AuditAction.AUTH_REFRESH_FAILED,
+          entityType: AuditEntityType.SESSION,
+          entityId: session.id,
+          metadata: { audience, reason: 'refresh_token_mismatch' },
+        }),
+      );
       throw new UnauthorizedException('Refresh session is invalid');
     }
 
@@ -169,6 +200,15 @@ export class AuthService {
     this.assertAudienceRole(user, audience);
 
     await this.sessionService.revokeById(session.id);
+    await this.auditService.recordSafe(
+      this.auditEventFactory.build({
+        actorUserId: user.id,
+        action: AuditAction.AUTH_LOGOUT_SUCCEEDED,
+        entityType: AuditEntityType.SESSION,
+        entityId: session.id,
+        metadata: { audience },
+      }),
+    );
   }
 
   async getMe(userId: string, audience: AuthAudience) {
@@ -289,8 +329,17 @@ export class AuthService {
     return this.emailVerificationService.requestForUser(userId);
   }
 
-  confirmEmailVerification(rawToken: string) {
-    return this.emailVerificationService.confirm(rawToken);
+  async confirmEmailVerification(rawToken: string) {
+    const result = await this.emailVerificationService.confirm(rawToken);
+    await this.auditService.recordSafe(
+      this.auditEventFactory.build({
+        actorUserId: result.userId,
+        action: AuditAction.AUTH_EMAIL_VERIFIED,
+        entityType: AuditEntityType.USER,
+        entityId: result.userId,
+      }),
+    );
+    return result;
   }
 
   private async issueTokensAndSession(user: User, context: AuthContext) {

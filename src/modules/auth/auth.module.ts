@@ -1,5 +1,6 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import { AuditModule } from '../audit/audit.module';
 import { AdminAuthController } from './admin/auth.admin.controller';
 import { MobileAuthController } from './mobile/auth.mobile.controller';
 import { AuthCookieService } from './shared/services/auth-cookie.service';
@@ -14,7 +15,7 @@ import { AccessTokenGuard } from './shared/guards/access-token.guard';
 import { PlatformRoleGuard } from './shared/guards/platform-role.guard';
 
 @Module({
-  imports: [JwtModule.register({})],
+  imports: [JwtModule.register({}), forwardRef(() => AuditModule)],
   controllers: [AdminAuthController, MobileAuthController],
   providers: [
     AuthService,

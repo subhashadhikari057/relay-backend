@@ -44,6 +44,7 @@ model User {
   organizationMemberships OrganizationMember[] @relation("organization_member_user")
   organizationInvitesSent OrganizationInvite[] @relation("organization_invited_by")
   organizationMembershipInvites OrganizationMember[] @relation("organization_member_invited_by")
+  auditActorLogs           AuditLog[]                @relation("audit_actor_user")
 
   @@map("users")
 }
@@ -97,11 +98,32 @@ model Organization {
   createdBy User                 @relation("organization_created_by", fields: [createdById], references: [id], onDelete: Restrict)
   members   OrganizationMember[]
   invites   OrganizationInvite[]
+  auditLogs AuditLog[]
 
   @@index([createdById])
   @@index([isActive])
   @@index([deletedAt])
   @@map("organizations")
+}
+
+model AuditLog {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String?   @map("organization_id") @db.Uuid
+  actorUserId    String?   @map("actor_user_id") @db.Uuid
+  action         String    @db.VarChar(120)
+  entityType     String    @map("entity_type") @db.VarChar(80)
+  entityId       String    @map("entity_id") @db.Uuid
+  metadata       Json?     @db.JsonB
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  actorUser    User?         @relation("audit_actor_user", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([action, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
 }
 
 model OrganizationMember {

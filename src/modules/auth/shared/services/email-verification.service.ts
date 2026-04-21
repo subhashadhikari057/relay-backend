@@ -9,6 +9,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { EmailDeliveryService } from './email-delivery.service';
 
 type ConfirmVerificationResult = {
+  userId: string;
   emailVerifiedAt: Date;
   isEmailVerified: true;
 };
@@ -111,6 +112,7 @@ export class EmailVerificationService {
     ]);
 
     return {
+      userId: verificationToken.userId,
       emailVerifiedAt: verifiedAt,
       isEmailVerified: true,
     };

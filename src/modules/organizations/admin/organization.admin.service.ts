@@ -5,6 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { OrganizationInvite, Prisma } from '@prisma/client';
+import { AuditService } from 'src/modules/audit/audit.service';
+import { AuditEventFactory } from 'src/modules/audit/shared/audit-event-factory.service';
+import {
+  AuditAction,
+  AuditEntityType,
+} from 'src/modules/audit/shared/audit.constants';
 import type { AuthJwtPayload } from 'src/modules/auth/shared/interfaces/auth-jwt-payload.interface';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AdminOrganizationDeleteDto } from './dto/admin-organization-delete.dto';
@@ -22,6 +28,8 @@ export class OrganizationAdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly organizationPolicyService: OrganizationPolicyService,
+    private readonly auditService: AuditService,
+    private readonly auditEventFactory: AuditEventFactory,
   ) {}
 
   async listOrganizationsForAdmin(query: ListAdminOrganizationsDto) {
@@ -116,6 +124,17 @@ export class OrganizationAdminService {
       `Admin status update by user=${actor.sub} org=${organizationId} isActive=${dto.isActive}`,
     );
 
+    await this.auditService.recordSafe(
+      this.auditEventFactory.build({
+        organizationId,
+        actorUserId: actor.sub,
+        action: AuditAction.ORGANIZATION_STATUS_UPDATED,
+        entityType: AuditEntityType.ORGANIZATION,
+        entityId: organizationId,
+        metadata: { isActive: dto.isActive },
+      }),
+    );
+
     return {
       success: true,
       organization,
@@ -140,6 +159,17 @@ export class OrganizationAdminService {
 
     this.logger.log(
       `Admin delete toggle by user=${actor.sub} org=${organizationId} deleted=${dto.deleted}`,
+    );
+
+    await this.auditService.recordSafe(
+      this.auditEventFactory.build({
+        organizationId,
+        actorUserId: actor.sub,
+        action: AuditAction.ORGANIZATION_SOFT_DELETE_UPDATED,
+        entityType: AuditEntityType.ORGANIZATION,
+        entityId: organizationId,
+        metadata: { deleted: dto.deleted },
+      }),
     );
 
     return {
@@ -179,6 +209,16 @@ export class OrganizationAdminService {
       `Admin revoked invite by user=${actor.sub} org=${organizationId} invite=${inviteId}`,
     );
 
+    await this.auditService.recordSafe(
+      this.auditEventFactory.build({
+        organizationId,
+        actorUserId: actor.sub,
+        action: AuditAction.ORGANIZATION_INVITE_REVOKED_BY_ADMIN,
+        entityType: AuditEntityType.ORGANIZATION_INVITE,
+        entityId: invite.id,
+      }),
+    );
+
     return { success: true };
   }
 
@@ -204,6 +244,17 @@ export class OrganizationAdminService {
 
     this.logger.log(
       `Admin revoked membership by user=${actor.sub} org=${organizationId} targetUser=${memberUserId}`,
+    );
+
+    await this.auditService.recordSafe(
+      this.auditEventFactory.build({
+        organizationId,
+        actorUserId: actor.sub,
+        action: AuditAction.ORGANIZATION_MEMBER_REVOKED_BY_ADMIN,
+        entityType: AuditEntityType.ORGANIZATION_MEMBER,
+        entityId: membership.id,
+        metadata: { targetUserId: memberUserId },
+      }),
     );
 
     return { success: true };
@@ -240,7 +291,8 @@ export class OrganizationAdminService {
         revokedAt: invite.revokedAt,
         createdAt: invite.createdAt,
         invitedById: invite.invitedBy.id,
-        invitedByName: invite.invitedBy.displayName ?? invite.invitedBy.fullName,
+        invitedByName:
+          invite.invitedBy.displayName ?? invite.invitedBy.fullName,
       })),
     };
   }
@@ -296,6 +348,16 @@ export class OrganizationAdminService {
     });
 
     this.logger.log(`Admin restore by user=${actor.sub} org=${organizationId}`);
+
+    await this.auditService.recordSafe(
+      this.auditEventFactory.build({
+        organizationId,
+        actorUserId: actor.sub,
+        action: AuditAction.ORGANIZATION_RESTORED,
+        entityType: AuditEntityType.ORGANIZATION,
+        entityId: organizationId,
+      }),
+    );
 
     return {
       success: true,
