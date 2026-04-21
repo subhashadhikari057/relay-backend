@@ -120,6 +120,23 @@ export class SessionService {
     return result.count > 0;
   }
 
+  async revokeAllByUserExceptSession(userId: string, currentSessionId: string) {
+    const result = await this.prisma.session.updateMany({
+      where: {
+        userId,
+        revokedAt: null,
+        id: {
+          not: currentSessionId,
+        },
+      },
+      data: {
+        revokedAt: new Date(),
+      },
+    });
+
+    return result.count;
+  }
+
   isRefreshTokenMatch(token: string, tokenHash: string) {
     return this.hashToken(token) === tokenHash;
   }

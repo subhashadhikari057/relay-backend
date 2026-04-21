@@ -1,9 +1,12 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   Ip,
+  Param,
+  ParseUUIDPipe,
   Post,
   Req,
   Res,
@@ -22,9 +25,11 @@ import type { Request, Response } from 'express';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { AuthTokenResponseDto } from '../shared/dto/auth-token-response.dto';
 import { AuthUserResponseDto } from '../shared/dto/auth-user-response.dto';
+import { AuthSessionsResponseDto } from '../shared/dto/auth-sessions-response.dto';
 import { EmailVerificationConfirmResponseDto } from '../shared/dto/email-verification-confirm-response.dto';
 import { EmailVerificationRequestResponseDto } from '../shared/dto/email-verification-request-response.dto';
 import { LogoutResponseDto } from '../shared/dto/logout-response.dto';
+import { RevokeSessionsResponseDto } from '../shared/dto/revoke-sessions-response.dto';
 import { AccessTokenGuard } from '../shared/guards/access-token.guard';
 import type { AuthJwtPayload } from '../shared/interfaces/auth-jwt-payload.interface';
 import { AuthCookieService } from '../shared/services/auth-cookie.service';
@@ -245,5 +250,71 @@ export class MobileAuthController {
       isEmailVerified: result.isEmailVerified,
       emailVerifiedAt: result.emailVerifiedAt,
     };
+  }
+
+  @Get('sessions')
+  @UseGuards(AccessTokenGuard)
+  @ApiBearerAuth('bearer')
+  @ApiOperation({
+    operationId: 'mobileAuthGetSessions',
+    summary: 'Get Active Sessions',
+    description:
+      'List active sessions for the authenticated user with current-session marker.',
+  })
+  @ApiOkResponse({
+    type: AuthSessionsResponseDto,
+    description: 'Active sessions returned successfully.',
+  })
+  getSessions(@CurrentUser() currentUser: AuthJwtPayload) {
+    return this.authService.getActiveSessions(
+      currentUser.sub,
+      'mobile',
+      currentUser.sessionId,
+    );
+  }
+
+  @Delete('sessions/:sessionId')
+  @UseGuards(AccessTokenGuard)
+  @ApiBearerAuth('bearer')
+  @ApiOperation({
+    operationId: 'mobileAuthRevokeSession',
+    summary: 'Revoke One Session',
+    description: 'Revoke a specific active session for the authenticated user.',
+  })
+  @ApiOkResponse({
+    type: LogoutResponseDto,
+    description: 'Selected session revoked successfully.',
+  })
+  revokeOneSession(
+    @CurrentUser() currentUser: AuthJwtPayload,
+    @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+  ) {
+    return this.authService.revokeSingleSession(
+      currentUser.sub,
+      'mobile',
+      currentUser.sessionId,
+      sessionId,
+    );
+  }
+
+  @Delete('sessions')
+  @UseGuards(AccessTokenGuard)
+  @ApiBearerAuth('bearer')
+  @ApiOperation({
+    operationId: 'mobileAuthRevokeOtherSessions',
+    summary: 'Revoke Other Sessions',
+    description:
+      'Revoke all active sessions except the currently authenticated session.',
+  })
+  @ApiOkResponse({
+    type: RevokeSessionsResponseDto,
+    description: 'Other sessions revoked successfully.',
+  })
+  revokeOtherSessions(@CurrentUser() currentUser: AuthJwtPayload) {
+    return this.authService.revokeOtherSessions(
+      currentUser.sub,
+      'mobile',
+      currentUser.sessionId,
+    );
   }
 }

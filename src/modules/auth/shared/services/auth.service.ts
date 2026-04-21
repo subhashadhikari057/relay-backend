@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -179,6 +180,109 @@ export class AuthService {
     this.assertAudienceRole(user, audience);
 
     return this.toSafeUser(user);
+  }
+
+  async getActiveSessions(
+    userId: string,
+    audience: AuthAudience,
+    currentSessionId: string,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    this.assertAudienceRole(user, audience);
+
+    const sessions =
+      await this.sessionService.findActiveSessionsByUserId(userId);
+
+    return {
+      count: sessions.length,
+      sessions: sessions.map((session) => ({
+        sessionId: session.id,
+        deviceInfo: session.deviceInfo,
+        ipAddress: session.ipAddress,
+        currentSession: session.id === currentSessionId,
+        createdAt: session.createdAt,
+        lastActiveAt: session.lastActiveAt,
+        expiresAt: session.expiresAt,
+      })),
+    };
+  }
+
+  async revokeSingleSession(
+    userId: string,
+    audience: AuthAudience,
+    currentSessionId: string,
+    targetSessionId: string,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    this.assertAudienceRole(user, audience);
+
+    if (targetSessionId === currentSessionId) {
+      throw new BadRequestException(
+        'Cannot revoke current session from this endpoint. Use logout instead.',
+      );
+    }
+
+    const revoked = await this.sessionService.revokeByIdForUser(
+      userId,
+      targetSessionId,
+    );
+
+    if (!revoked) {
+      throw new NotFoundException('Session not found');
+    }
+
+    this.sessionNotificationService.notifySessionEvicted({
+      userId,
+      sessionId: targetSessionId,
+      reason: 'revoked_by_user',
+    });
+
+    return { success: true };
+  }
+
+  async revokeOtherSessions(
+    userId: string,
+    audience: AuthAudience,
+    currentSessionId: string,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    this.assertAudienceRole(user, audience);
+
+    const sessions =
+      await this.sessionService.findActiveSessionsByUserId(userId);
+    const revokedTargets = sessions.filter(
+      (session) => session.id !== currentSessionId,
+    );
+
+    const revokedCount = await this.sessionService.revokeAllByUserExceptSession(
+      userId,
+      currentSessionId,
+    );
+
+    for (const session of revokedTargets) {
+      this.sessionNotificationService.notifySessionEvicted({
+        userId,
+        sessionId: session.id,
+        reason: 'revoked_by_user',
+      });
+    }
+
+    return {
+      success: true,
+      revokedCount,
+    };
   }
 
   requestEmailVerification(userId: string) {
