@@ -28,7 +28,7 @@ Global account entity. One user can belong to many workspaces. Never hard-delete
 | Column | Type | Constraint | Notes |
 | --- | --- | --- | --- |
 | 🔑 `id` | `UUID` | `PK NOT NULL` | UUIDv7 generated at application/service layer |
-| `email` | `VARCHAR(255)` | `NOT NULL UNIQUE` | Lowercase enforced via CHECK or trigger |
+| `email` | `CITEXT` | `NOT NULL UNIQUE` | Case-insensitive unique email at DB level |
 | `password_hash` | `TEXT` | `NULLABLE` | Required for `local` auth users, nullable for Google-only users |
 | `full_name` | `VARCHAR(255)` | `NOT NULL` | Legal or preferred full name |
 | `display_name` | `VARCHAR(80)` | `NULLABLE` | Short name shown in UI — falls back to `full_name` |
@@ -470,7 +470,7 @@ All primary keys automatically create a B-tree index. The table below lists **ad
 
 | Table | Index Columns | Type | Reason |
 | --- | --- | --- | --- |
-| `users` | `lower(email)` | `UNIQUE` | Case-insensitive login lookup by email |
+| `users` | `email` (`CITEXT`) | `UNIQUE` | Case-insensitive login lookup by email |
 | `sessions` | `token_hash` | `UNIQUE` | Token validation on every authenticated request |
 | `sessions` | `user_id` | `B-TREE` | List sessions for a user (logout all devices) |
 | `sessions` | `expires_at` | `B-TREE` | Cleanup job — purge expired sessions |
@@ -486,7 +486,7 @@ All primary keys automatically create a B-tree index. The table below lists **ad
 | `workspace_members` | `(workspace_id, user_id)` | `UNIQUE` | Core membership check — most frequent query |
 | `workspace_members` | `user_id` | `B-TREE` | List all workspaces a user belongs to |
 | `workspace_invites` | `token_hash` | `UNIQUE` | Invite token validation |
-| `workspace_invites` | `(workspace_id, email)` | `B-TREE` | Prevent duplicate pending invites |
+| `workspace_invites` | `(workspace_id, email)` partial unique | `B-TREE` | Prevent duplicate pending invites only (`accepted_at IS NULL AND revoked_at IS NULL`) |
 | `channels` | `(workspace_id, name)` | `UNIQUE` | No duplicate names per workspace |
 | `channels` | `workspace_id` | `B-TREE` | List all channels in a workspace |
 | `channel_members` | `(channel_id, user_id)` | `UNIQUE` | Membership check for access control |
@@ -527,7 +527,7 @@ All primary keys automatically create a B-tree index. The table below lists **ad
 - `channels.type` must be one of: `public` | `private`
 - `notifications.type` must be one of: `mention` | `thread_reply` | `dm` | `invite` | `reaction`
 - `auth_accounts.provider` must be one of: `local` | `google`
-- `users.email` must be unique in a case-insensitive manner (`lower(email)` unique index or `citext`)
+- `users.email` must be unique in a case-insensitive manner (prefer `citext`)
 - `message.content` cannot be empty string — minimum 1 non-whitespace character (enforce via CHECK)
 - Sessions with `revoked_at` set must be rejected regardless of `expires_at`
 - Invite tokens must be cryptographically random and stored only as a hash

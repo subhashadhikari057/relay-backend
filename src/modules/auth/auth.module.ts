@@ -28,5 +28,6 @@ import { PlatformRoleGuard } from './shared/guards/platform-role.guard';
     AccessTokenGuard,
     PlatformRoleGuard,
   ],
+  exports: [AccessTokenGuard, PlatformRoleGuard, TokenService, SessionService],
 })
 export class AuthModule {}

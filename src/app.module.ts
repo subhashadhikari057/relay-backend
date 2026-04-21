@@ -14,6 +14,7 @@ import { ReactionsModule } from './modules/reactions/reactions.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { HealthModule } from './modules/health/health.module';
+import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -34,6 +35,7 @@ import { PrismaModule } from './prisma/prisma.module';
     NotificationsModule,
     AuditModule,
     HealthModule,
+    OrganizationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
