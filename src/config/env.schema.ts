@@ -17,4 +17,5 @@ export const envSchema = z.object({
   AUTH_MAX_ACTIVE_SESSIONS_PER_USER: z.string().default('0'),
   EMAIL_VERIFICATION_TOKEN_EXPIRES_IN: z.string().default('20m'),
   EMAIL_VERIFICATION_URL_BASE: z.string().url(),
+  UPLOAD_LOCAL_ROOT: z.string().default('uploads'),
 });

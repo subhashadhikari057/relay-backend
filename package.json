@@ -21,11 +21,14 @@
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:migrate:status": "prisma migrate status",
-    "prisma:studio": "prisma studio",
+    "prisma:studio": "prisma studio --browser none",
     "db:migrate": "pnpm run prisma:migrate:dev",
     "db:generate": "pnpm run prisma:generate",
     "db:studio": "pnpm run prisma:studio",
     "db:seed": "node --env-file=.env prisma/seed.cjs"
+  },
+  "engines": {
+    "node": ">=20 <23"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

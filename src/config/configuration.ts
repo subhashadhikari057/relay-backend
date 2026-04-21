@@ -30,4 +30,7 @@ export default () => ({
       process.env.EMAIL_VERIFICATION_URL_BASE ??
       'http://localhost:3000/verify-email',
   },
+  upload: {
+    localRoot: process.env.UPLOAD_LOCAL_ROOT ?? 'uploads',
+  },
 });

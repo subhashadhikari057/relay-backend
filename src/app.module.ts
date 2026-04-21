@@ -15,6 +15,7 @@ import { ReactionsModule } from './modules/reactions/reactions.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { HealthModule } from './modules/health/health.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
+import { UploadModule } from './modules/upload/upload.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -36,6 +37,7 @@ import { PrismaModule } from './prisma/prisma.module';
     NotificationsModule,
     HealthModule,
     OrganizationsModule,
+    UploadModule,
   ],
   controllers: [AppController],
   providers: [AppService],
