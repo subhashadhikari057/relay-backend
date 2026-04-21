@@ -33,6 +33,18 @@ export function setupApiDocs(app: INestApplication) {
       },
       'bearer',
     )
+    .addCookieAuth('relay_refresh_token', {
+      type: 'apiKey',
+      in: 'cookie',
+      name: 'relay_refresh_token',
+      description: 'HttpOnly refresh token cookie',
+    })
+    .addCookieAuth('relay_sid', {
+      type: 'apiKey',
+      in: 'cookie',
+      name: 'relay_sid',
+      description: 'HttpOnly session id cookie',
+    })
     .build();
 
   const baseOpenApiDocument = SwaggerModule.createDocument(app, swaggerConfig, {

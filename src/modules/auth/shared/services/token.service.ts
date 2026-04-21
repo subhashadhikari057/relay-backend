@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { randomBytes } from 'crypto';
 import { AuthJwtPayload } from '../interfaces/auth-jwt-payload.interface';
 
 @Injectable()
@@ -11,30 +12,29 @@ export class TokenService {
   ) {}
 
   createAccessToken(payload: AuthJwtPayload) {
+    const privateKey = this.getPrivateKey();
+
     return this.jwtService.signAsync(payload, {
-      secret: this.configService.getOrThrow<string>('jwt.accessSecret'),
+      privateKey,
+      algorithm: 'RS256',
       expiresIn: this.parseDurationToSeconds(
         this.configService.getOrThrow<string>('jwt.accessExpiresIn'),
       ),
     });
   }
 
-  createRefreshToken(payload: AuthJwtPayload) {
-    return this.jwtService.signAsync(payload, {
-      secret: this.configService.getOrThrow<string>('jwt.refreshSecret'),
-      expiresIn: this.parseDurationToSeconds(
-        this.configService.getOrThrow<string>('jwt.refreshExpiresIn'),
-      ),
-    });
+  createRefreshToken() {
+    return randomBytes(48).toString('hex');
   }
 
-  async verifyRefreshToken(token: string) {
+  async verifyAccessToken(token: string) {
     try {
       return await this.jwtService.verifyAsync<AuthJwtPayload>(token, {
-        secret: this.configService.getOrThrow<string>('jwt.refreshSecret'),
+        publicKey: this.getPublicKey(),
+        algorithms: ['RS256'],
       });
     } catch {
-      throw new UnauthorizedException('Invalid or expired refresh token');
+      throw new UnauthorizedException('Invalid or expired access token');
     }
   }
 
@@ -78,5 +78,19 @@ export class TokenService {
     };
 
     return value * (unitMap[unit] ?? unitMap.h);
+  }
+
+  private getPrivateKey() {
+    const encoded = this.configService.getOrThrow<string>(
+      'jwt.privateKeyBase64',
+    );
+    return Buffer.from(encoded, 'base64').toString('utf8');
+  }
+
+  private getPublicKey() {
+    const encoded = this.configService.getOrThrow<string>(
+      'jwt.publicKeyBase64',
+    );
+    return Buffer.from(encoded, 'base64').toString('utf8');
   }
 }

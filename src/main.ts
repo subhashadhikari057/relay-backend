@@ -26,12 +26,6 @@ async function bootstrap() {
   await app.listen(port);
   logger.log(`Application is listening on port: ${port}`);
   logger.log(`Admin API docs: http://localhost:${port}/api/api-docs`);
-  logger.log(
-    `Admin Swagger JSON: http://localhost:${port}/api/api-docs/openapi`,
-  );
   logger.log(`Mobile API docs: http://localhost:${port}/api/mobile-docs`);
-  logger.log(
-    `Mobile Swagger JSON: http://localhost:${port}/api/mobile-docs/openapi`,
-  );
 }
 void bootstrap();

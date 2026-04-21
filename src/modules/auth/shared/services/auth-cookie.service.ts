@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Response } from 'express';
+import { CookieOptions, Response } from 'express';
 import { TokenService } from './token.service';
 
 @Injectable()
@@ -15,11 +15,18 @@ export class AuthCookieService {
       this.configService.getOrThrow<string>('auth.refreshCookieName'),
       refreshToken,
       {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure:
-          this.configService.getOrThrow<string>('nodeEnv') === 'production',
-        path: '/api',
+        ...this.getBaseCookieOptions(),
+        maxAge: this.tokenService.getRefreshTokenMaxAgeMs(),
+      },
+    );
+  }
+
+  setSessionIdCookie(response: Response, sessionId: string) {
+    response.cookie(
+      this.configService.getOrThrow<string>('auth.sessionCookieName'),
+      sessionId,
+      {
+        ...this.getBaseCookieOptions(),
         maxAge: this.tokenService.getRefreshTokenMaxAgeMs(),
       },
     );
@@ -28,13 +35,14 @@ export class AuthCookieService {
   clearRefreshTokenCookie(response: Response) {
     response.clearCookie(
       this.configService.getOrThrow<string>('auth.refreshCookieName'),
-      {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure:
-          this.configService.getOrThrow<string>('nodeEnv') === 'production',
-        path: '/api',
-      },
+      this.getBaseCookieOptions(),
+    );
+  }
+
+  clearSessionIdCookie(response: Response) {
+    response.clearCookie(
+      this.configService.getOrThrow<string>('auth.sessionCookieName'),
+      this.getBaseCookieOptions(),
     );
   }
 
@@ -45,5 +53,28 @@ export class AuthCookieService {
     const token = cookies?.[cookieName];
 
     return typeof token === 'string' ? token : null;
+  }
+
+  getSessionIdFromCookies(cookies: Record<string, unknown> | undefined) {
+    const cookieName = this.configService.getOrThrow<string>(
+      'auth.sessionCookieName',
+    );
+    const token = cookies?.[cookieName];
+
+    return typeof token === 'string' ? token : null;
+  }
+
+  private getBaseCookieOptions(): CookieOptions {
+    const domain = this.configService.get<string>('auth.cookieDomain');
+
+    return {
+      httpOnly: true,
+      sameSite: this.configService.getOrThrow<'lax' | 'strict' | 'none'>(
+        'auth.cookieSameSite',
+      ),
+      secure: this.configService.getOrThrow<boolean>('auth.cookieSecure'),
+      path: this.configService.getOrThrow<string>('auth.cookiePath'),
+      ...(domain ? { domain } : {}),
+    };
   }
 }

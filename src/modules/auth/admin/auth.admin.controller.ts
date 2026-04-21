@@ -14,6 +14,7 @@ import { PlatformRole } from '@prisma/client';
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiCookieAuth,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -43,7 +44,8 @@ export class AdminAuthController {
   @ApiOperation({
     operationId: 'adminAuthLogin',
     summary: 'Admin Login',
-    description: 'Authenticate a superadmin and issue access/refresh tokens.',
+    description:
+      'Authenticate a superadmin and issue access token with refresh/session HttpOnly cookies.',
   })
   @ApiBody({ type: LoginAdminDto, description: 'Admin login credentials.' })
   @ApiOkResponse({
@@ -62,6 +64,7 @@ export class AdminAuthController {
     });
 
     this.authCookieService.setRefreshTokenCookie(response, result.refreshToken);
+    this.authCookieService.setSessionIdCookie(response, result.sessionId);
 
     return {
       accessToken: result.accessToken,
@@ -74,8 +77,10 @@ export class AdminAuthController {
     operationId: 'adminAuthRefresh',
     summary: 'Admin Refresh Token',
     description:
-      'Refresh admin access token using HttpOnly refresh-token cookie.',
+      'Refresh admin access token using HttpOnly refresh-token and sid cookies.',
   })
+  @ApiCookieAuth('relay_refresh_token')
+  @ApiCookieAuth('relay_sid')
   @ApiOkResponse({
     type: AuthTokenResponseDto,
     description: 'Admin access token refreshed successfully.',
@@ -89,17 +94,26 @@ export class AdminAuthController {
     const refreshToken = this.authCookieService.getRefreshTokenFromCookies(
       request.cookies,
     );
+    const sessionId = this.authCookieService.getSessionIdFromCookies(
+      request.cookies,
+    );
 
-    if (!refreshToken) {
-      throw new UnauthorizedException('Missing refresh token cookie');
+    if (!refreshToken || !sessionId) {
+      throw new UnauthorizedException('Missing refresh token or sid cookie');
     }
 
-    const result = await this.authService.refresh(refreshToken, 'admin', {
-      deviceInfo: userAgent,
-      ipAddress,
-    });
+    const result = await this.authService.refresh(
+      sessionId,
+      refreshToken,
+      'admin',
+      {
+        deviceInfo: userAgent,
+        ipAddress,
+      },
+    );
 
     this.authCookieService.setRefreshTokenCookie(response, result.refreshToken);
+    this.authCookieService.setSessionIdCookie(response, result.sessionId);
 
     return {
       accessToken: result.accessToken,
@@ -112,8 +126,9 @@ export class AdminAuthController {
     operationId: 'adminAuthLogout',
     summary: 'Admin Logout',
     description:
-      'Revoke active refresh session and clear refresh-token cookie.',
+      'Revoke active refresh session and clear refresh-token/sid cookies.',
   })
+  @ApiCookieAuth('relay_sid')
   @ApiOkResponse({
     type: LogoutResponseDto,
     description: 'Admin logged out successfully.',
@@ -122,15 +137,16 @@ export class AdminAuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const refreshToken = this.authCookieService.getRefreshTokenFromCookies(
+    const sessionId = this.authCookieService.getSessionIdFromCookies(
       request.cookies,
     );
 
-    if (refreshToken) {
-      await this.authService.logout(refreshToken, 'admin');
+    if (sessionId) {
+      await this.authService.logout(sessionId, 'admin');
     }
 
     this.authCookieService.clearRefreshTokenCookie(response);
+    this.authCookieService.clearSessionIdCookie(response);
 
     return { success: true };
   }

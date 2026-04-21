@@ -13,6 +13,7 @@ import {
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiCookieAuth,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -46,7 +47,7 @@ export class MobileAuthController {
     operationId: 'mobileAuthSignup',
     summary: 'Mobile Signup',
     description:
-      'Create a mobile user account and issue access/refresh tokens.',
+      'Create a mobile user account and issue access token with refresh/session HttpOnly cookies.',
   })
   @ApiBody({ type: SignupMobileDto, description: 'Mobile signup payload.' })
   @ApiOkResponse({
@@ -65,6 +66,7 @@ export class MobileAuthController {
     });
 
     this.authCookieService.setRefreshTokenCookie(response, result.refreshToken);
+    this.authCookieService.setSessionIdCookie(response, result.sessionId);
 
     return {
       accessToken: result.accessToken,
@@ -76,7 +78,8 @@ export class MobileAuthController {
   @ApiOperation({
     operationId: 'mobileAuthLogin',
     summary: 'Mobile Login',
-    description: 'Authenticate a mobile user and issue access/refresh tokens.',
+    description:
+      'Authenticate a mobile user and issue access token with refresh/session HttpOnly cookies.',
   })
   @ApiBody({ type: LoginMobileDto, description: 'Mobile login credentials.' })
   @ApiOkResponse({
@@ -95,6 +98,7 @@ export class MobileAuthController {
     });
 
     this.authCookieService.setRefreshTokenCookie(response, result.refreshToken);
+    this.authCookieService.setSessionIdCookie(response, result.sessionId);
 
     return {
       accessToken: result.accessToken,
@@ -107,8 +111,10 @@ export class MobileAuthController {
     operationId: 'mobileAuthRefresh',
     summary: 'Mobile Refresh Token',
     description:
-      'Refresh mobile access token using HttpOnly refresh-token cookie.',
+      'Refresh mobile access token using HttpOnly refresh-token and sid cookies.',
   })
+  @ApiCookieAuth('relay_refresh_token')
+  @ApiCookieAuth('relay_sid')
   @ApiOkResponse({
     type: AuthTokenResponseDto,
     description: 'Mobile access token refreshed successfully.',
@@ -122,17 +128,26 @@ export class MobileAuthController {
     const refreshToken = this.authCookieService.getRefreshTokenFromCookies(
       request.cookies,
     );
+    const sessionId = this.authCookieService.getSessionIdFromCookies(
+      request.cookies,
+    );
 
-    if (!refreshToken) {
-      throw new UnauthorizedException('Missing refresh token cookie');
+    if (!refreshToken || !sessionId) {
+      throw new UnauthorizedException('Missing refresh token or sid cookie');
     }
 
-    const result = await this.authService.refresh(refreshToken, 'mobile', {
-      deviceInfo: userAgent,
-      ipAddress,
-    });
+    const result = await this.authService.refresh(
+      sessionId,
+      refreshToken,
+      'mobile',
+      {
+        deviceInfo: userAgent,
+        ipAddress,
+      },
+    );
 
     this.authCookieService.setRefreshTokenCookie(response, result.refreshToken);
+    this.authCookieService.setSessionIdCookie(response, result.sessionId);
 
     return {
       accessToken: result.accessToken,
@@ -145,8 +160,9 @@ export class MobileAuthController {
     operationId: 'mobileAuthLogout',
     summary: 'Mobile Logout',
     description:
-      'Revoke active refresh session and clear refresh-token cookie.',
+      'Revoke active refresh session and clear refresh-token/sid cookies.',
   })
+  @ApiCookieAuth('relay_sid')
   @ApiOkResponse({
     type: LogoutResponseDto,
     description: 'Mobile user logged out successfully.',
@@ -155,15 +171,16 @@ export class MobileAuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const refreshToken = this.authCookieService.getRefreshTokenFromCookies(
+    const sessionId = this.authCookieService.getSessionIdFromCookies(
       request.cookies,
     );
 
-    if (refreshToken) {
-      await this.authService.logout(refreshToken, 'mobile');
+    if (sessionId) {
+      await this.authService.logout(sessionId, 'mobile');
     }
 
     this.authCookieService.clearRefreshTokenCookie(response);
+    this.authCookieService.clearSessionIdCookie(response);
 
     return { success: true };
   }

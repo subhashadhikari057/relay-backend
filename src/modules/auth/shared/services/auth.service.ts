@@ -90,14 +90,18 @@ export class AuthService {
   }
 
   async refresh(
+    sessionId: string,
     refreshToken: string,
     audience: AuthAudience,
     context: AuthContext,
   ) {
-    const payload = await this.tokenService.verifyRefreshToken(refreshToken);
+    const session = await this.sessionService.findActiveSessionById(sessionId);
+    if (!session) {
+      throw new UnauthorizedException('Refresh session is invalid');
+    }
 
     const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
+      where: { id: session.userId },
     });
     if (!user) {
       throw new NotFoundException('User not found');
@@ -109,25 +113,50 @@ export class AuthService {
 
     this.assertAudienceRole(user, audience);
 
-    const activeSession = await this.sessionService.findActiveSessionByToken(
-      user.id,
+    const isRefreshTokenMatch = this.sessionService.isRefreshTokenMatch(
       refreshToken,
+      session.tokenHash,
     );
 
-    if (!activeSession) {
+    if (!isRefreshTokenMatch) {
+      await this.sessionService.revokeById(session.id);
       throw new UnauthorizedException('Refresh session is invalid');
     }
 
-    await this.sessionService.revokeByToken(user.id, refreshToken);
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      platformRole: user.platformRole,
+      sessionId: session.id,
+    };
+    const accessToken = await this.tokenService.createAccessToken(payload);
+    const nextRefreshToken = this.tokenService.createRefreshToken();
+    const refreshTtl = this.tokenService.getRefreshTokenMaxAgeMs();
 
-    return this.issueTokensAndSession(user, context);
+    await this.sessionService.rotateSessionRefreshToken({
+      sessionId: session.id,
+      refreshToken: nextRefreshToken,
+      expiresAt: new Date(Date.now() + refreshTtl),
+      deviceInfo: context.deviceInfo,
+      ipAddress: context.ipAddress,
+    });
+
+    return {
+      accessToken,
+      refreshToken: nextRefreshToken,
+      sessionId: session.id,
+      user: this.toSafeUser(user),
+    };
   }
 
-  async logout(refreshToken: string, audience: AuthAudience) {
-    const payload = await this.tokenService.verifyRefreshToken(refreshToken);
+  async logout(sessionId: string, audience: AuthAudience) {
+    const session = await this.sessionService.findActiveSessionById(sessionId);
+    if (!session) {
+      return;
+    }
 
     const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
+      where: { id: session.userId },
     });
     if (!user) {
       throw new NotFoundException('User not found');
@@ -135,7 +164,7 @@ export class AuthService {
 
     this.assertAudienceRole(user, audience);
 
-    await this.sessionService.revokeByToken(user.id, refreshToken);
+    await this.sessionService.revokeById(session.id);
   }
 
   async getMe(userId: string, audience: AuthAudience) {
@@ -158,29 +187,28 @@ export class AuthService {
   }
 
   private async issueTokensAndSession(user: User, context: AuthContext) {
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      platformRole: user.platformRole,
-    };
-
-    const [accessToken, refreshToken] = await Promise.all([
-      this.tokenService.createAccessToken(payload),
-      this.tokenService.createRefreshToken(payload),
-    ]);
+    const refreshToken = this.tokenService.createRefreshToken();
 
     const refreshTtl = this.tokenService.getRefreshTokenMaxAgeMs();
-    await this.sessionService.createSession({
+    const session = await this.sessionService.createSession({
       userId: user.id,
       refreshToken,
       expiresAt: new Date(Date.now() + refreshTtl),
       deviceInfo: context.deviceInfo,
       ipAddress: context.ipAddress,
     });
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      platformRole: user.platformRole,
+      sessionId: session.id,
+    };
+    const accessToken = await this.tokenService.createAccessToken(payload);
 
     return {
       accessToken,
       refreshToken,
+      sessionId: session.id,
       user: this.toSafeUser(user),
     };
   }
