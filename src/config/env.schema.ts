@@ -14,6 +14,7 @@ export const envSchema = z.object({
   AUTH_COOKIE_SECURE: z.enum(['true', 'false']).optional(),
   AUTH_COOKIE_PATH: z.string().default('/api'),
   AUTH_COOKIE_DOMAIN: z.string().optional(),
+  AUTH_MAX_ACTIVE_SESSIONS_PER_USER: z.string().default('0'),
   EMAIL_VERIFICATION_TOKEN_EXPIRES_IN: z.string().default('20m'),
   EMAIL_VERIFICATION_URL_BASE: z.string().url(),
 });

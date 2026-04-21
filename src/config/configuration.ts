@@ -20,6 +20,10 @@ export default () => ({
         : process.env.NODE_ENV === 'production',
     cookiePath: process.env.AUTH_COOKIE_PATH ?? '/api',
     cookieDomain: process.env.AUTH_COOKIE_DOMAIN,
+    maxActiveSessionsPerUser: parseInt(
+      process.env.AUTH_MAX_ACTIVE_SESSIONS_PER_USER ?? '0',
+      10,
+    ),
     emailVerificationTokenExpiresIn:
       process.env.EMAIL_VERIFICATION_TOKEN_EXPIRES_IN ?? '20m',
     emailVerificationUrlBase:

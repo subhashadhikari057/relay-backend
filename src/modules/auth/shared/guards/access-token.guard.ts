@@ -35,6 +35,7 @@ export class AccessTokenGuard implements CanActivate {
       throw new UnauthorizedException('Session is invalid or expired');
     }
 
+    await this.sessionService.touchSessionActivity(session.id);
     request.user = payload;
     return true;
   }

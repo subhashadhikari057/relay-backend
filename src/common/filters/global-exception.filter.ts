@@ -146,7 +146,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   }
 
   private extractHttpExceptionDetails(statusCode: number, response: unknown) {
-    if (statusCode !== 400 && statusCode !== 422) {
+    if (statusCode !== 400 && statusCode !== 409 && statusCode !== 422) {
       return undefined;
     }
 
@@ -155,6 +155,14 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     if (typeof response === 'object' && response !== null) {
+      if (statusCode === 409) {
+        const responseObject = { ...(response as Record<string, unknown>) };
+        delete responseObject.message;
+        delete responseObject.error;
+        delete responseObject.statusCode;
+        return Object.keys(responseObject).length ? responseObject : undefined;
+      }
+
       const message = (response as { message?: unknown }).message;
       if (Array.isArray(message)) {
         return { issues: message };

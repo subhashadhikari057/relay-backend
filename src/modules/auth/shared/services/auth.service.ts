@@ -4,6 +4,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PlatformRole, User } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { LoginMobileDto } from '../../mobile/dto/login-mobile.dto';
@@ -12,6 +13,7 @@ import { LoginAdminDto } from '../../admin/dto/login-admin.dto';
 import { PasswordService } from './password.service';
 import { EmailVerificationService } from './email-verification.service';
 import { SessionService } from './session.service';
+import { SessionNotificationService } from './session-notification.service';
 import { TokenService } from './token.service';
 
 export type AuthAudience = 'mobile' | 'admin';
@@ -23,12 +25,16 @@ type AuthContext = {
 
 @Injectable()
 export class AuthService {
+  private static readonly SESSION_TOKEN_RETRY_LIMIT = 3;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly passwordService: PasswordService,
     private readonly tokenService: TokenService,
     private readonly sessionService: SessionService,
+    private readonly sessionNotificationService: SessionNotificationService,
     private readonly emailVerificationService: EmailVerificationService,
+    private readonly configService: ConfigService,
   ) {}
 
   async signupMobile(dto: SignupMobileDto, context: AuthContext) {
@@ -129,17 +135,14 @@ export class AuthService {
       platformRole: user.platformRole,
       sessionId: session.id,
     };
-    const accessToken = await this.tokenService.createAccessToken(payload);
-    const nextRefreshToken = this.tokenService.createRefreshToken();
     const refreshTtl = this.tokenService.getRefreshTokenMaxAgeMs();
-
-    await this.sessionService.rotateSessionRefreshToken({
+    const nextRefreshToken = await this.rotateSessionWithRetry({
       sessionId: session.id,
-      refreshToken: nextRefreshToken,
       expiresAt: new Date(Date.now() + refreshTtl),
       deviceInfo: context.deviceInfo,
       ipAddress: context.ipAddress,
     });
+    const accessToken = await this.tokenService.createAccessToken(payload);
 
     return {
       accessToken,
@@ -187,12 +190,10 @@ export class AuthService {
   }
 
   private async issueTokensAndSession(user: User, context: AuthContext) {
-    const refreshToken = this.tokenService.createRefreshToken();
-
+    await this.enforceSessionLimitBeforeCreate(user.id);
     const refreshTtl = this.tokenService.getRefreshTokenMaxAgeMs();
-    const session = await this.sessionService.createSession({
+    const sessionWithToken = await this.createSessionWithRetry({
       userId: user.id,
-      refreshToken,
       expiresAt: new Date(Date.now() + refreshTtl),
       deviceInfo: context.deviceInfo,
       ipAddress: context.ipAddress,
@@ -201,16 +202,137 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       platformRole: user.platformRole,
-      sessionId: session.id,
+      sessionId: sessionWithToken.session.id,
     };
     const accessToken = await this.tokenService.createAccessToken(payload);
 
     return {
       accessToken,
-      refreshToken,
-      sessionId: session.id,
+      refreshToken: sessionWithToken.refreshToken,
+      sessionId: sessionWithToken.session.id,
       user: this.toSafeUser(user),
     };
+  }
+
+  private async enforceSessionLimitBeforeCreate(userId: string) {
+    const maxSessions = this.getMaxActiveSessionsPerUser();
+    if (maxSessions <= 0) {
+      return;
+    }
+
+    const activeSessions =
+      await this.sessionService.findActiveSessionsByUserId(userId);
+    if (activeSessions.length < maxSessions) {
+      return;
+    }
+
+    const oldestSession = activeSessions[0];
+    await this.sessionService.revokeById(oldestSession.id);
+    this.sessionNotificationService.notifySessionEvicted({
+      userId,
+      sessionId: oldestSession.id,
+      reason: 'signed_in_on_new_device',
+    });
+  }
+
+  private getMaxActiveSessionsPerUser() {
+    return this.configService.getOrThrow<number>(
+      'auth.maxActiveSessionsPerUser',
+    );
+  }
+
+  private async createSessionWithRetry(input: {
+    userId: string;
+    expiresAt: Date;
+    deviceInfo?: string;
+    ipAddress?: string;
+  }) {
+    for (
+      let attempt = 1;
+      attempt <= AuthService.SESSION_TOKEN_RETRY_LIMIT;
+      attempt += 1
+    ) {
+      const refreshToken = this.tokenService.createRefreshToken();
+
+      try {
+        const session = await this.sessionService.createSession({
+          userId: input.userId,
+          refreshToken,
+          expiresAt: input.expiresAt,
+          deviceInfo: input.deviceInfo,
+          ipAddress: input.ipAddress,
+        });
+
+        return { session, refreshToken };
+      } catch (error: unknown) {
+        if (
+          this.isSessionTokenCollision(error) &&
+          attempt < AuthService.SESSION_TOKEN_RETRY_LIMIT
+        ) {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw new UnauthorizedException('Failed to create session');
+  }
+
+  private async rotateSessionWithRetry(input: {
+    sessionId: string;
+    expiresAt: Date;
+    deviceInfo?: string;
+    ipAddress?: string;
+  }) {
+    for (
+      let attempt = 1;
+      attempt <= AuthService.SESSION_TOKEN_RETRY_LIMIT;
+      attempt += 1
+    ) {
+      const refreshToken = this.tokenService.createRefreshToken();
+
+      try {
+        await this.sessionService.rotateSessionRefreshToken({
+          sessionId: input.sessionId,
+          refreshToken,
+          expiresAt: input.expiresAt,
+          deviceInfo: input.deviceInfo,
+          ipAddress: input.ipAddress,
+        });
+
+        return refreshToken;
+      } catch (error: unknown) {
+        if (
+          this.isSessionTokenCollision(error) &&
+          attempt < AuthService.SESSION_TOKEN_RETRY_LIMIT
+        ) {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw new UnauthorizedException('Failed to rotate session');
+  }
+
+  private isSessionTokenCollision(error: unknown) {
+    if (typeof error !== 'object' || error === null) {
+      return false;
+    }
+
+    const code =
+      'code' in error && typeof error.code === 'string' ? error.code : null;
+    if (code !== 'P2002') {
+      return false;
+    }
+
+    const meta = 'meta' in error ? (error.meta as { target?: unknown }) : null;
+    const target = meta?.target;
+    if (Array.isArray(target)) {
+      return target.includes('token_hash');
+    }
+
+    return typeof target === 'string' && target.includes('token_hash');
   }
 
   private assertAudienceRole(user: User, audience: AuthAudience) {

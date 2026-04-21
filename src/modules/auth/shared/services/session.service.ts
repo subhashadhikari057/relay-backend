@@ -24,6 +24,7 @@ export class SessionService {
         expiresAt: input.expiresAt,
         deviceInfo: input.deviceInfo,
         ipAddress: input.ipAddress,
+        lastActiveAt: new Date(),
       },
     });
   }
@@ -35,6 +36,17 @@ export class SessionService {
         revokedAt: null,
         expiresAt: { gt: new Date() },
       },
+    });
+  }
+
+  findActiveSessionsByUserId(userId: string) {
+    return this.prisma.session.findMany({
+      where: {
+        userId,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: [{ lastActiveAt: 'asc' }, { createdAt: 'asc' }],
     });
   }
 
@@ -80,6 +92,7 @@ export class SessionService {
         expiresAt: input.expiresAt,
         deviceInfo: input.deviceInfo,
         ipAddress: input.ipAddress,
+        lastActiveAt: new Date(),
       },
     });
   }
@@ -94,8 +107,33 @@ export class SessionService {
     });
   }
 
+  async revokeByIdForUser(userId: string, sessionId: string) {
+    const result = await this.prisma.session.updateMany({
+      where: {
+        id: sessionId,
+        userId,
+        revokedAt: null,
+      },
+      data: { revokedAt: new Date() },
+    });
+
+    return result.count > 0;
+  }
+
   isRefreshTokenMatch(token: string, tokenHash: string) {
     return this.hashToken(token) === tokenHash;
+  }
+
+  async touchSessionActivity(sessionId: string) {
+    await this.prisma.session.updateMany({
+      where: {
+        id: sessionId,
+        revokedAt: null,
+      },
+      data: {
+        lastActiveAt: new Date(),
+      },
+    });
   }
 
   private hashToken(token: string) {

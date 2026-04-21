@@ -8,6 +8,7 @@ import { EmailDeliveryService } from './shared/services/email-delivery.service';
 import { EmailVerificationService } from './shared/services/email-verification.service';
 import { PasswordService } from './shared/services/password.service';
 import { SessionService } from './shared/services/session.service';
+import { SessionNotificationService } from './shared/services/session-notification.service';
 import { TokenService } from './shared/services/token.service';
 import { AccessTokenGuard } from './shared/guards/access-token.guard';
 import { PlatformRoleGuard } from './shared/guards/platform-role.guard';
@@ -20,6 +21,7 @@ import { PlatformRoleGuard } from './shared/guards/platform-role.guard';
     PasswordService,
     TokenService,
     SessionService,
+    SessionNotificationService,
     AuthCookieService,
     EmailVerificationService,
     EmailDeliveryService,
