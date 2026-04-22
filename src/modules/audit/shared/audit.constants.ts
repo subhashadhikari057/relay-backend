@@ -31,6 +31,8 @@ export enum AuditAction {
   WORKSPACE_MESSAGE_THREAD_REPLY_UPDATED = 'workspace.message.thread.reply.updated',
   WORKSPACE_MESSAGE_THREAD_REPLY_DELETED = 'workspace.message.thread.reply.deleted',
   WORKSPACE_MESSAGE_READ_UPDATED = 'workspace.message.read.updated',
+  WORKSPACE_MESSAGE_REACTION_TOGGLED = 'workspace.message.reaction.toggled',
+  WORKSPACE_MESSAGE_PIN_TOGGLED = 'workspace.message.pin.toggled',
   PERMISSION_PLATFORM_UPDATED = 'permission.platform.updated',
   PERMISSION_PLATFORM_BULK_UPDATED = 'permission.platform.bulk_updated',
   PERMISSION_WORKSPACE_UPDATED = 'permission.workspace.updated',
@@ -47,5 +49,7 @@ export enum AuditEntityType {
   CHANNEL_MEMBER = 'channel_member',
   MESSAGE = 'message',
   MESSAGE_ATTACHMENT = 'message_attachment',
+  MESSAGE_REACTION = 'message_reaction',
+  MESSAGE_PIN = 'message_pin',
   PERMISSION_POLICY = 'permission_policy',
 }

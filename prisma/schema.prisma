@@ -75,6 +75,8 @@ model User {
   channelMemberships      ChannelMember[]
   channelReads            UserChannelRead[]
   messages               Message[]          @relation("message_sender")
+  messageReactions       MessageReaction[]
+  pinnedMessages         MessagePin[]       @relation("message_pinned_by")
   workspacesCreated    Workspace[]      @relation("workspace_created_by")
   workspaceMemberships WorkspaceMember[] @relation("workspace_member_user")
   workspaceInvitesSent WorkspaceInvite[] @relation("workspace_invited_by")
@@ -301,6 +303,8 @@ model Message {
   parentMessage   Message?             @relation("message_thread", fields: [parentMessageId], references: [id], onDelete: SetNull)
   threadReplies   Message[]            @relation("message_thread")
   attachments     MessageAttachment[]
+  reactions       MessageReaction[]
+  pin             MessagePin?
 
   @@index([channelId, createdAt, id])
   @@index([parentMessageId, createdAt, id])
@@ -326,4 +330,32 @@ model MessageAttachment {
 
   @@index([messageId, sortOrder])
   @@map("message_attachments")
+}
+
+model MessageReaction {
+  messageId  String   @map("message_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  emoji      String   @db.VarChar(16)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId])
+  @@index([messageId, emoji])
+  @@index([userId, createdAt])
+  @@map("message_reactions")
+}
+
+model MessagePin {
+  messageId       String    @id @map("message_id") @db.Uuid
+  pinnedByUserId  String?   @map("pinned_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  message      Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  pinnedByUser User?   @relation("message_pinned_by", fields: [pinnedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([pinnedByUserId, createdAt])
+  @@map("message_pins")
 }

@@ -17,6 +17,7 @@ import { ListThreadRepliesQueryDto } from './dto/list-thread-replies-query.dto';
 import { MarkChannelReadDto } from './dto/mark-channel-read.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { MessageAccessService } from './services/message-access.service';
+import { MessageEngagementService } from './services/message-engagement.service';
 import { MessagePresenterService } from './services/message-presenter.service';
 import { MessageQueryService } from './services/message-query.service';
 import { MessageValidationService } from './services/message-validation.service';
@@ -30,6 +31,7 @@ export class MessagesMobileService {
     private readonly messageAccessService: MessageAccessService,
     private readonly messageValidationService: MessageValidationService,
     private readonly messagePresenterService: MessagePresenterService,
+    private readonly messageEngagementService: MessageEngagementService,
     private readonly messageQueryService: MessageQueryService,
   ) {}
 
@@ -151,7 +153,7 @@ export class MessagesMobileService {
       }),
     );
 
-    return this.messagePresenterService.mapMessage(updated, userId);
+    return this.mapMessageWithEngagement(updated, userId);
   }
 
   async deleteMessage(
@@ -446,7 +448,7 @@ export class MessagesMobileService {
       }),
     );
 
-    return this.messagePresenterService.mapMessage(updated, userId);
+    return this.mapMessageWithEngagement(updated, userId);
   }
 
   async deleteThreadReply(
@@ -590,6 +592,21 @@ export class MessagesMobileService {
       }),
     );
 
-    return this.messagePresenterService.mapMessage(message, input.userId);
+    return this.mapMessageWithEngagement(message, input.userId);
+  }
+
+  private async mapMessageWithEngagement(
+    message: Prisma.MessageGetPayload<{
+      include: ReturnType<MessagePresenterService['messageInclude']>;
+    }>,
+    viewerUserId: string,
+  ) {
+    const meta =
+      await this.messageEngagementService.getReactionSummaryForMessage(
+        message.id,
+        viewerUserId,
+      );
+
+    return this.messagePresenterService.mapMessage(message, viewerUserId, meta);
   }
 }

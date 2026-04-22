@@ -2,6 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 
+type MessagePresentationMeta = {
+  reactionSummary: Array<{
+    emoji: string;
+    count: number;
+  }>;
+  myReaction: string | null;
+  isPinned: boolean;
+  pinnedAt: Date | null;
+  pinnedByUserId: string | null;
+};
+
 @Injectable()
 export class MessagePresenterService {
   constructor(private readonly configService: ConfigService) {}
@@ -32,6 +43,7 @@ export class MessagePresenterService {
       include: ReturnType<MessagePresenterService['messageInclude']>;
     }>,
     viewerUserId: string,
+    meta?: Partial<MessagePresentationMeta>,
   ) {
     const canMutate =
       message.senderUserId === viewerUserId &&
@@ -84,6 +96,11 @@ export class MessagePresenterService {
         : message._count.threadReplies,
       canEdit: !message.deletedAt && canMutate,
       canDelete: !message.deletedAt && canMutate,
+      reactionSummary: meta?.reactionSummary ?? [],
+      myReaction: meta?.myReaction ?? null,
+      isPinned: meta?.isPinned ?? false,
+      pinnedAt: meta?.pinnedAt ?? null,
+      pinnedByUserId: meta?.pinnedByUserId ?? null,
     };
   }
 }

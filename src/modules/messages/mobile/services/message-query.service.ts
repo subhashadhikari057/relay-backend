@@ -4,6 +4,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { ListMessagesQueryDto } from '../dto/list-messages-query.dto';
 import { ListThreadRepliesQueryDto } from '../dto/list-thread-replies-query.dto';
 import { MessageAccessService } from './message-access.service';
+import { MessageEngagementService } from './message-engagement.service';
 import { MessagePresenterService } from './message-presenter.service';
 import { MessageValidationService } from './message-validation.service';
 
@@ -14,6 +15,7 @@ export class MessageQueryService {
     private readonly messageAccessService: MessageAccessService,
     private readonly messageValidationService: MessageValidationService,
     private readonly messagePresenterService: MessagePresenterService,
+    private readonly messageEngagementService: MessageEngagementService,
   ) {}
 
   async listMessages(
@@ -60,6 +62,10 @@ export class MessageQueryService {
 
     const hasNext = messages.length > limit;
     const pageItems = hasNext ? messages.slice(0, limit) : messages;
+    const metaMap = await this.messageEngagementService.buildMetaMap(
+      pageItems.map((message) => message.id),
+      userId,
+    );
     const nextCursor = hasNext
       ? this.messageValidationService.encodeCursor(
           pageItems[pageItems.length - 1].createdAt,
@@ -71,7 +77,11 @@ export class MessageQueryService {
       count: pageItems.length,
       nextCursor,
       messages: pageItems.map((message) =>
-        this.messagePresenterService.mapMessage(message, userId),
+        this.messagePresenterService.mapMessage(
+          message,
+          userId,
+          metaMap.get(message.id),
+        ),
       ),
     };
   }
@@ -103,7 +113,13 @@ export class MessageQueryService {
       throw new NotFoundException('Message not found');
     }
 
-    return this.messagePresenterService.mapMessage(message, userId);
+    const meta =
+      await this.messageEngagementService.getReactionSummaryForMessage(
+        message.id,
+        userId,
+      );
+
+    return this.messagePresenterService.mapMessage(message, userId, meta);
   }
 
   async listThreadReplies(
@@ -165,6 +181,10 @@ export class MessageQueryService {
 
     const hasNext = replies.length > limit;
     const pageItems = hasNext ? replies.slice(0, limit) : replies;
+    const metaMap = await this.messageEngagementService.buildMetaMap(
+      pageItems.map((reply) => reply.id),
+      userId,
+    );
     const nextCursor = hasNext
       ? this.messageValidationService.encodeCursor(
           pageItems[pageItems.length - 1].createdAt,
@@ -176,7 +196,11 @@ export class MessageQueryService {
       count: pageItems.length,
       nextCursor,
       messages: pageItems.map((reply) =>
-        this.messagePresenterService.mapMessage(reply, userId),
+        this.messagePresenterService.mapMessage(
+          reply,
+          userId,
+          metaMap.get(reply.id),
+        ),
       ),
     };
   }
@@ -209,6 +233,73 @@ export class MessageQueryService {
       throw new NotFoundException('Thread reply not found');
     }
 
-    return this.messagePresenterService.mapMessage(reply, userId);
+    const meta =
+      await this.messageEngagementService.getReactionSummaryForMessage(
+        reply.id,
+        userId,
+      );
+
+    return this.messagePresenterService.mapMessage(reply, userId, meta);
+  }
+
+  async listPinnedMessages(
+    userId: string,
+    workspaceId: string,
+    channelId: string,
+  ) {
+    await this.messageAccessService.resolveChannelAccess(
+      userId,
+      workspaceId,
+      channelId,
+      { forRead: true },
+    );
+
+    const pinnedMessageIds =
+      await this.messageEngagementService.getPinnedMessagesForChannel({
+        workspaceId,
+        channelId,
+      });
+
+    if (pinnedMessageIds.length === 0) {
+      return {
+        count: 0,
+        messages: [],
+      };
+    }
+
+    const orderMap = new Map(
+      pinnedMessageIds.map((messageId, index) => [messageId, index]),
+    );
+
+    const messages = await this.prisma.message.findMany({
+      where: {
+        id: { in: pinnedMessageIds },
+        workspaceId,
+        channelId,
+      },
+      include: this.messagePresenterService.messageInclude(),
+    });
+
+    messages.sort((left, right) => {
+      const leftOrder = orderMap.get(left.id) ?? Number.MAX_SAFE_INTEGER;
+      const rightOrder = orderMap.get(right.id) ?? Number.MAX_SAFE_INTEGER;
+      return leftOrder - rightOrder;
+    });
+
+    const metaMap = await this.messageEngagementService.buildMetaMap(
+      messages.map((message) => message.id),
+      userId,
+    );
+
+    return {
+      count: messages.length,
+      messages: messages.map((message) =>
+        this.messagePresenterService.mapMessage(
+          message,
+          userId,
+          metaMap.get(message.id),
+        ),
+      ),
+    };
   }
 }

@@ -2,6 +2,7 @@ import { MessageType } from '@prisma/client';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { MessageAttachmentDto } from './message-attachment.dto';
 import { MessageAuthorDto } from './message-author.dto';
+import { MessageReactionSummaryDto } from './message-reaction-summary.dto';
 
 export class MessageItemDto {
   @ApiProperty({
@@ -126,4 +127,39 @@ export class MessageItemDto {
     example: true,
   })
   canDelete!: boolean;
+
+  @ApiProperty({
+    description: 'Grouped reaction counts for the message.',
+    type: [MessageReactionSummaryDto],
+  })
+  reactionSummary!: MessageReactionSummaryDto[];
+
+  @ApiPropertyOptional({
+    description: 'Current user reaction for this message.',
+    nullable: true,
+    example: '👍',
+  })
+  myReaction!: string | null;
+
+  @ApiProperty({
+    description: 'Whether the message is currently pinned.',
+    example: false,
+  })
+  isPinned!: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Pin timestamp when pinned.',
+    nullable: true,
+    format: 'date-time',
+    example: '2026-04-22T16:00:00.000Z',
+  })
+  pinnedAt!: Date | null;
+
+  @ApiPropertyOptional({
+    description: 'User id who pinned the message.',
+    nullable: true,
+    format: 'uuid',
+    example: '4356b7ac-679b-4021-9ed8-a912624a3d8f',
+  })
+  pinnedByUserId!: string | null;
 }
