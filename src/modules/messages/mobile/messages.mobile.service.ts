@@ -109,6 +109,10 @@ export class MessagesMobileService {
       throw new NotFoundException('Message not found');
     }
 
+    if (message.type === 'system') {
+      throw new BadRequestException('System messages cannot be edited');
+    }
+
     this.messageAccessService.assertCanMutateMessage(
       userId,
       message.senderUserId,
@@ -180,6 +184,7 @@ export class MessagesMobileService {
       },
       select: {
         id: true,
+        type: true,
         senderUserId: true,
         createdAt: true,
         deletedAt: true,
@@ -188,6 +193,10 @@ export class MessagesMobileService {
 
     if (!message) {
       throw new NotFoundException('Message not found');
+    }
+
+    if (message.type === 'system') {
+      throw new BadRequestException('System messages cannot be deleted');
     }
 
     this.messageAccessService.assertCanMutateMessage(
@@ -352,6 +361,10 @@ export class MessagesMobileService {
       throw new NotFoundException('Thread reply not found');
     }
 
+    if (reply.type === 'system') {
+      throw new BadRequestException('System messages cannot be edited');
+    }
+
     this.messageAccessService.assertCanMutateMessage(
       userId,
       reply.senderUserId,
@@ -424,6 +437,7 @@ export class MessagesMobileService {
       },
       select: {
         id: true,
+        type: true,
         senderUserId: true,
         createdAt: true,
         deletedAt: true,
@@ -432,6 +446,10 @@ export class MessagesMobileService {
 
     if (!reply) {
       throw new NotFoundException('Thread reply not found');
+    }
+
+    if (reply.type === 'system') {
+      throw new BadRequestException('System messages cannot be deleted');
     }
 
     this.messageAccessService.assertCanMutateMessage(

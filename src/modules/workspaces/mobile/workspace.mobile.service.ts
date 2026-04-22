@@ -23,6 +23,8 @@ import {
 import type { AuthJwtPayload } from 'src/modules/auth/shared/interfaces/auth-jwt-payload.interface';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PermissionsPolicyService } from 'src/modules/permissions/services/permissions-policy.service';
+import { SystemMessageEvent } from 'src/modules/system-messages/system-message.constants';
+import { SystemMessageService } from 'src/modules/system-messages/system-message.service';
 import { WorkspacePolicyService } from '../shared/services/workspace-policy.service';
 import { toWorkspaceInviteDto } from '../shared/utils/invite-mapper.util';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
@@ -40,6 +42,7 @@ export class WorkspaceMobileService {
     private readonly permissionsPolicyService: PermissionsPolicyService,
     private readonly auditService: AuditService,
     private readonly auditEventFactory: AuditEventFactory,
+    private readonly systemMessageService: SystemMessageService,
   ) {}
 
   async createWorkspace(userId: string, dto: CreateWorkspaceDto) {
@@ -116,6 +119,12 @@ export class WorkspaceMobileService {
         entityId: workspace.id,
       }),
     );
+
+    await this.systemMessageService.publishToWorkspaceGeneralSafe({
+      workspaceId: workspace.id,
+      actorUserId: userId,
+      event: SystemMessageEvent.WORKSPACE_CREATED,
+    });
 
     return {
       id: workspace.id,
@@ -585,6 +594,17 @@ export class WorkspaceMobileService {
       }),
     );
 
+    await this.systemMessageService.publishToWorkspaceGeneralSafe({
+      workspaceId: invite.workspaceId,
+      actorUserId: user.sub,
+      targetUserId: user.sub,
+      event: SystemMessageEvent.WORKSPACE_MEMBER_JOINED,
+      metadata: {
+        inviteId: invite.id,
+        role: invite.role,
+      },
+    });
+
     return {
       success: true,
       workspaceId: invite.workspaceId,
@@ -785,6 +805,13 @@ export class WorkspaceMobileService {
       }),
     );
 
+    await this.systemMessageService.publishToWorkspaceGeneralSafe({
+      workspaceId,
+      actorUserId: userId,
+      targetUserId,
+      event: SystemMessageEvent.WORKSPACE_MEMBER_REMOVED,
+    });
+
     return {
       success: true,
     };
@@ -856,6 +883,13 @@ export class WorkspaceMobileService {
       }),
     );
 
+    await this.systemMessageService.publishToWorkspaceGeneralSafe({
+      workspaceId,
+      actorUserId: userId,
+      targetUserId: dto.newOwnerUserId,
+      event: SystemMessageEvent.WORKSPACE_OWNERSHIP_TRANSFERRED,
+    });
+
     return {
       success: true,
       previousOwnerUserId: userId,
@@ -899,6 +933,13 @@ export class WorkspaceMobileService {
         entityId: membership.id,
       }),
     );
+
+    await this.systemMessageService.publishToWorkspaceGeneralSafe({
+      workspaceId,
+      actorUserId: userId,
+      targetUserId: userId,
+      event: SystemMessageEvent.WORKSPACE_MEMBER_LEFT,
+    });
 
     return { success: true };
   }

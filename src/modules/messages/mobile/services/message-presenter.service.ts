@@ -46,6 +46,7 @@ export class MessagePresenterService {
     meta?: Partial<MessagePresentationMeta>,
   ) {
     const canMutate =
+      message.type !== 'system' &&
       message.senderUserId === viewerUserId &&
       Date.now() - message.createdAt.getTime() <=
         Math.max(

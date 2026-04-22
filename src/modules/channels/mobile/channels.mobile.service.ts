@@ -18,6 +18,8 @@ import {
   AuditEntityType,
 } from 'src/modules/audit/shared/audit.constants';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { SystemMessageEvent } from 'src/modules/system-messages/system-message.constants';
+import { SystemMessageService } from 'src/modules/system-messages/system-message.service';
 import { WorkspacePolicyService } from 'src/modules/workspaces/shared/services/workspace-policy.service';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { ListChannelMembersQueryDto } from './dto/list-channel-members-query.dto';
@@ -49,6 +51,7 @@ export class ChannelsMobileService {
     private readonly workspacePolicyService: WorkspacePolicyService,
     private readonly auditService: AuditService,
     private readonly auditEventFactory: AuditEventFactory,
+    private readonly systemMessageService: SystemMessageService,
   ) {}
 
   async createChannel(
@@ -107,6 +110,13 @@ export class ChannelsMobileService {
           },
         }),
       );
+
+      await this.systemMessageService.publishToChannelSafe({
+        workspaceId,
+        channelId: channel.id,
+        actorUserId: userId,
+        event: SystemMessageEvent.CHANNEL_CREATED,
+      });
 
       return channel;
     } catch (error) {
@@ -315,6 +325,13 @@ export class ChannelsMobileService {
           entityId: channel.id,
         }),
       );
+
+      await this.systemMessageService.publishToChannelSafe({
+        workspaceId,
+        channelId: channel.id,
+        actorUserId: userId,
+        event: SystemMessageEvent.CHANNEL_ARCHIVED,
+      });
     }
 
     return { success: true };
@@ -373,6 +390,14 @@ export class ChannelsMobileService {
         metadata: { channelId, userId: upserted.userId },
       }),
     );
+
+    await this.systemMessageService.publishToChannelSafe({
+      workspaceId,
+      channelId,
+      actorUserId: userId,
+      targetUserId: userId,
+      event: SystemMessageEvent.CHANNEL_JOINED,
+    });
 
     return { success: true };
   }
@@ -436,6 +461,14 @@ export class ChannelsMobileService {
         metadata: { channelId, userId },
       }),
     );
+
+    await this.systemMessageService.publishToChannelSafe({
+      workspaceId,
+      channelId,
+      actorUserId: userId,
+      targetUserId: userId,
+      event: SystemMessageEvent.CHANNEL_LEFT,
+    });
 
     return { success: true };
   }
@@ -625,6 +658,17 @@ export class ChannelsMobileService {
       }),
     );
 
+    await this.systemMessageService.publishToChannelSafe({
+      workspaceId,
+      channelId,
+      actorUserId,
+      targetUserId: member.userId,
+      event: SystemMessageEvent.CHANNEL_MEMBER_ADDED,
+      metadata: {
+        role: member.role,
+      },
+    });
+
     return {
       userId: member.userId,
       email: member.user.email,
@@ -721,6 +765,14 @@ export class ChannelsMobileService {
         },
       }),
     );
+
+    await this.systemMessageService.publishToChannelSafe({
+      workspaceId,
+      channelId,
+      actorUserId,
+      targetUserId,
+      event: SystemMessageEvent.CHANNEL_MEMBER_REMOVED,
+    });
 
     return { success: true };
   }

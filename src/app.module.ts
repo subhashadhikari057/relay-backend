@@ -17,6 +17,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { HealthModule } from './modules/health/health.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
+import { SystemMessagesModule } from './modules/system-messages/system-messages.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -40,6 +41,7 @@ import { PrismaModule } from './prisma/prisma.module';
     HealthModule,
     UploadModule,
     PermissionsModule,
+    SystemMessagesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

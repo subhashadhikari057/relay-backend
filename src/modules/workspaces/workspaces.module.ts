@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { SystemMessagesModule } from '../system-messages/system-messages.module';
 import { AdminWorkspaceController } from './admin/workspace.admin.controller';
 import { WorkspaceAdminService } from './admin/workspace.admin.service';
 import { MobileWorkspaceController } from './mobile/workspace.mobile.controller';
@@ -8,7 +9,7 @@ import { WorkspaceRoleGuard } from './shared/guards/workspace-role.guard';
 import { WorkspacePolicyService } from './shared/services/workspace-policy.service';
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, SystemMessagesModule],
   controllers: [MobileWorkspaceController, AdminWorkspaceController],
   providers: [
     WorkspaceMobileService,
