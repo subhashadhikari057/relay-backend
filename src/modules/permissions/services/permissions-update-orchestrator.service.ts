@@ -55,7 +55,7 @@ export class PermissionsUpdateOrchestratorService {
         action:
           input.scope === PermissionScope.platform
             ? AuditAction.PERMISSION_PLATFORM_UPDATED
-            : AuditAction.PERMISSION_ORGANIZATION_UPDATED,
+            : AuditAction.PERMISSION_WORKSPACE_UPDATED,
         entityType: AuditEntityType.PERMISSION_POLICY,
         entityId: result.policy.id,
         metadata: {
@@ -85,7 +85,7 @@ export class PermissionsUpdateOrchestratorService {
         action:
           input.scope === PermissionScope.platform
             ? AuditAction.PERMISSION_PLATFORM_BULK_UPDATED
-            : AuditAction.PERMISSION_ORGANIZATION_BULK_UPDATED,
+            : AuditAction.PERMISSION_WORKSPACE_BULK_UPDATED,
         entityType: AuditEntityType.PERMISSION_POLICY,
         entityId: input.workspaceId ?? input.actor.sub,
         metadata: {

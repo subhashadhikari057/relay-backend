@@ -73,8 +73,8 @@ export class WorkspaceMobileService {
       this.auditEventFactory.build({
         workspaceId: workspace.id,
         actorUserId: userId,
-        action: AuditAction.ORGANIZATION_CREATED,
-        entityType: AuditEntityType.ORGANIZATION,
+        action: AuditAction.WORKSPACE_CREATED,
+        entityType: AuditEntityType.WORKSPACE,
         entityId: workspace.id,
       }),
     );
@@ -239,8 +239,8 @@ export class WorkspaceMobileService {
       this.auditEventFactory.build({
         workspaceId,
         actorUserId: userId,
-        action: AuditAction.ORGANIZATION_PROFILE_UPDATED,
-        entityType: AuditEntityType.ORGANIZATION,
+        action: AuditAction.WORKSPACE_PROFILE_UPDATED,
+        entityType: AuditEntityType.WORKSPACE,
         entityId: workspaceId,
       }),
     );
@@ -335,8 +335,8 @@ export class WorkspaceMobileService {
       this.auditEventFactory.build({
         workspaceId,
         actorUserId: user.sub,
-        action: AuditAction.ORGANIZATION_INVITE_CREATED,
-        entityType: AuditEntityType.ORGANIZATION_INVITE,
+        action: AuditAction.WORKSPACE_INVITE_CREATED,
+        entityType: AuditEntityType.WORKSPACE_INVITE,
         entityId: invite.id,
         metadata: {
           email: normalizedEmail,
@@ -432,8 +432,8 @@ export class WorkspaceMobileService {
       this.auditEventFactory.build({
         workspaceId,
         actorUserId: userId,
-        action: AuditAction.ORGANIZATION_INVITE_REVOKED,
-        entityType: AuditEntityType.ORGANIZATION_INVITE,
+        action: AuditAction.WORKSPACE_INVITE_REVOKED,
+        entityType: AuditEntityType.WORKSPACE_INVITE,
         entityId: invite.id,
       }),
     );
@@ -541,8 +541,8 @@ export class WorkspaceMobileService {
       this.auditEventFactory.build({
         workspaceId: invite.workspaceId,
         actorUserId: user.sub,
-        action: AuditAction.ORGANIZATION_INVITE_ACCEPTED,
-        entityType: AuditEntityType.ORGANIZATION_INVITE,
+        action: AuditAction.WORKSPACE_INVITE_ACCEPTED,
+        entityType: AuditEntityType.WORKSPACE_INVITE,
         entityId: invite.id,
       }),
     );
@@ -683,8 +683,8 @@ export class WorkspaceMobileService {
       this.auditEventFactory.build({
         workspaceId,
         actorUserId: userId,
-        action: AuditAction.ORGANIZATION_MEMBER_ROLE_UPDATED,
-        entityType: AuditEntityType.ORGANIZATION_MEMBER,
+        action: AuditAction.WORKSPACE_MEMBER_ROLE_UPDATED,
+        entityType: AuditEntityType.WORKSPACE_MEMBER,
         entityId: updated.id,
         metadata: { targetUserId, role: updated.role },
       }),
@@ -740,8 +740,8 @@ export class WorkspaceMobileService {
       this.auditEventFactory.build({
         workspaceId,
         actorUserId: userId,
-        action: AuditAction.ORGANIZATION_MEMBER_REMOVED,
-        entityType: AuditEntityType.ORGANIZATION_MEMBER,
+        action: AuditAction.WORKSPACE_MEMBER_REMOVED,
+        entityType: AuditEntityType.WORKSPACE_MEMBER,
         entityId: targetMembership.id,
         metadata: { targetUserId },
       }),
@@ -811,8 +811,8 @@ export class WorkspaceMobileService {
       this.auditEventFactory.build({
         workspaceId,
         actorUserId: userId,
-        action: AuditAction.ORGANIZATION_OWNERSHIP_TRANSFERRED,
-        entityType: AuditEntityType.ORGANIZATION,
+        action: AuditAction.WORKSPACE_OWNERSHIP_TRANSFERRED,
+        entityType: AuditEntityType.WORKSPACE,
         entityId: workspaceId,
         metadata: { newOwnerUserId: dto.newOwnerUserId },
       }),
@@ -856,8 +856,8 @@ export class WorkspaceMobileService {
       this.auditEventFactory.build({
         workspaceId,
         actorUserId: userId,
-        action: AuditAction.ORGANIZATION_MEMBER_LEFT,
-        entityType: AuditEntityType.ORGANIZATION_MEMBER,
+        action: AuditAction.WORKSPACE_MEMBER_LEFT,
+        entityType: AuditEntityType.WORKSPACE_MEMBER,
         entityId: membership.id,
       }),
     );

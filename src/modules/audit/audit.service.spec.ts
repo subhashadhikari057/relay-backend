@@ -38,7 +38,7 @@ describe('AuditService', () => {
     await service.listAdminAudit({
       workspaceId: '01968c8b-a4fc-7a08-b3d2-4e69ec7fcbf3',
       actorUserId: '01968c8f-1234-7cd1-abcd-cc79f9d1d4d6',
-      action: AuditAction.ORGANIZATION_MEMBER_ROLE_UPDATED,
+      action: AuditAction.WORKSPACE_MEMBER_ROLE_UPDATED,
       from: '2026-04-20T00:00:00.000Z',
       to: '2026-04-23T00:00:00.000Z',
       page: 2,

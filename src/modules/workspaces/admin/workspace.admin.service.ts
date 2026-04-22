@@ -127,8 +127,8 @@ export class WorkspaceAdminService {
       this.auditEventFactory.build({
         workspaceId,
         actorUserId: actor.sub,
-        action: AuditAction.ORGANIZATION_STATUS_UPDATED,
-        entityType: AuditEntityType.ORGANIZATION,
+        action: AuditAction.WORKSPACE_STATUS_UPDATED,
+        entityType: AuditEntityType.WORKSPACE,
         entityId: workspaceId,
         metadata: { isActive: dto.isActive },
       }),
@@ -164,8 +164,8 @@ export class WorkspaceAdminService {
       this.auditEventFactory.build({
         workspaceId,
         actorUserId: actor.sub,
-        action: AuditAction.ORGANIZATION_SOFT_DELETE_UPDATED,
-        entityType: AuditEntityType.ORGANIZATION,
+        action: AuditAction.WORKSPACE_SOFT_DELETE_UPDATED,
+        entityType: AuditEntityType.WORKSPACE,
         entityId: workspaceId,
         metadata: { deleted: dto.deleted },
       }),
@@ -212,8 +212,8 @@ export class WorkspaceAdminService {
       this.auditEventFactory.build({
         workspaceId,
         actorUserId: actor.sub,
-        action: AuditAction.ORGANIZATION_INVITE_REVOKED_BY_ADMIN,
-        entityType: AuditEntityType.ORGANIZATION_INVITE,
+        action: AuditAction.WORKSPACE_INVITE_REVOKED_BY_ADMIN,
+        entityType: AuditEntityType.WORKSPACE_INVITE,
         entityId: invite.id,
       }),
     );
@@ -258,8 +258,8 @@ export class WorkspaceAdminService {
       this.auditEventFactory.build({
         workspaceId,
         actorUserId: actor.sub,
-        action: AuditAction.ORGANIZATION_MEMBER_REVOKED_BY_ADMIN,
-        entityType: AuditEntityType.ORGANIZATION_MEMBER,
+        action: AuditAction.WORKSPACE_MEMBER_REVOKED_BY_ADMIN,
+        entityType: AuditEntityType.WORKSPACE_MEMBER,
         entityId: membership.id,
         metadata: { targetUserId: memberUserId },
       }),
@@ -349,8 +349,8 @@ export class WorkspaceAdminService {
       this.auditEventFactory.build({
         workspaceId,
         actorUserId: actor.sub,
-        action: AuditAction.ORGANIZATION_RESTORED,
-        entityType: AuditEntityType.ORGANIZATION,
+        action: AuditAction.WORKSPACE_RESTORED,
+        entityType: AuditEntityType.WORKSPACE,
         entityId: workspaceId,
       }),
     );

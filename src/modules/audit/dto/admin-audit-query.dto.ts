@@ -31,7 +31,7 @@ export class AdminAuditQueryDto {
   @ApiPropertyOptional({
     description: 'Optional action filter.',
     enum: AuditAction,
-    example: AuditAction.ORGANIZATION_MEMBER_ROLE_UPDATED,
+    example: AuditAction.WORKSPACE_MEMBER_ROLE_UPDATED,
   })
   @IsOptional()
   @IsEnum(AuditAction)

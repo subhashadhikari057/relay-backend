@@ -23,14 +23,14 @@ export class AuditItemDto {
   @ApiProperty({
     description: 'Canonical audit action key.',
     enum: AuditAction,
-    example: AuditAction.ORGANIZATION_INVITE_CREATED,
+    example: AuditAction.WORKSPACE_INVITE_CREATED,
   })
   action!: AuditAction;
 
   @ApiProperty({
     description: 'Entity type associated with action.',
     enum: AuditEntityType,
-    example: AuditEntityType.ORGANIZATION_INVITE,
+    example: AuditEntityType.WORKSPACE_INVITE,
   })
   entityType!: AuditEntityType;
 
