@@ -310,6 +310,8 @@ model Message {
   @@index([parentMessageId, createdAt, id])
   @@index([senderUserId, createdAt])
   @@index([workspaceId, channelId, deletedAt])
+  @@index([workspaceId, deletedAt, createdAt, id])
+  @@index([channelId, deletedAt, createdAt, id])
   @@map("messages")
 }
 

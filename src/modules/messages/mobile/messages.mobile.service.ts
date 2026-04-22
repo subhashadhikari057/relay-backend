@@ -20,6 +20,7 @@ import { MessageAccessService } from './services/message-access.service';
 import { MessageEngagementService } from './services/message-engagement.service';
 import { MessagePresenterService } from './services/message-presenter.service';
 import { MessageQueryService } from './services/message-query.service';
+import { MessageReadStateService } from './services/message-read-state.service';
 import { MessageValidationService } from './services/message-validation.service';
 
 @Injectable()
@@ -33,6 +34,7 @@ export class MessagesMobileService {
     private readonly messagePresenterService: MessagePresenterService,
     private readonly messageEngagementService: MessageEngagementService,
     private readonly messageQueryService: MessageQueryService,
+    private readonly messageReadStateService: MessageReadStateService,
   ) {}
 
   createMessage(
@@ -228,64 +230,12 @@ export class MessagesMobileService {
     channelId: string,
     dto: MarkChannelReadDto,
   ) {
-    await this.messageAccessService.resolveChannelAccess(
+    return this.messageReadStateService.markChannelRead(
       userId,
       workspaceId,
       channelId,
-      { forRead: true },
+      dto,
     );
-
-    const message = await this.prisma.message.findFirst({
-      where: {
-        id: dto.lastReadMessageId,
-        workspaceId,
-        channelId,
-      },
-      select: { id: true },
-    });
-
-    if (!message) {
-      throw new NotFoundException(
-        'Referenced message not found in this channel',
-      );
-    }
-
-    const now = new Date();
-    await this.prisma.userChannelRead.upsert({
-      where: {
-        userId_channelId: {
-          userId,
-          channelId,
-        },
-      },
-      update: {
-        lastReadMessageId: message.id,
-        lastReadAt: now,
-      },
-      create: {
-        userId,
-        channelId,
-        lastReadMessageId: message.id,
-        lastReadAt: now,
-      },
-    });
-
-    await this.auditService.recordSafe(
-      this.auditEventFactory.build({
-        workspaceId,
-        actorUserId: userId,
-        action: AuditAction.WORKSPACE_MESSAGE_READ_UPDATED,
-        entityType: AuditEntityType.MESSAGE,
-        entityId: message.id,
-        metadata: { channelId },
-      }),
-    );
-
-    return {
-      success: true,
-      lastReadMessageId: message.id,
-      lastReadAt: now,
-    };
   }
 
   async createThreadReply(
