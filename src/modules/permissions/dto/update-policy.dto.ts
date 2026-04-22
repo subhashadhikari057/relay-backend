@@ -12,7 +12,7 @@ export class UpdatePolicyDto {
   role!: PermissionPolicyRole;
 
   @ApiProperty({
-    example: 'org.member',
+    example: 'workspace.member',
     description: 'Permission resource key.',
   })
   @IsString()

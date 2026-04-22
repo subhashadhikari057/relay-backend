@@ -1,15 +1,15 @@
 export enum PlatformPermissionResource {
   AUTH = 'platform.auth',
-  ORGANIZATIONS = 'platform.organizations',
+  WORKSPACES = 'platform.workspaces',
   AUDIT = 'platform.audit',
   UPLOAD = 'platform.upload',
   PERMISSIONS = 'platform.permissions',
 }
 
-export enum OrganizationPermissionResource {
-  ORGANIZATION = 'org.organization',
-  INVITES = 'org.invite',
-  MEMBERS = 'org.member',
-  ACTIVITY = 'org.activity',
-  PERMISSIONS = 'org.permissions',
+export enum WorkspacePermissionResource {
+  WORKSPACE = 'workspace.workspace',
+  INVITES = 'workspace.invite',
+  MEMBERS = 'workspace.member',
+  ACTIVITY = 'workspace.activity',
+  PERMISSIONS = 'workspace.permissions',
 }

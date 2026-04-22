@@ -4,7 +4,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import {
-  OrganizationRole,
+  WorkspaceRole,
   PermissionPolicyRole,
   PermissionPolicyScope,
   Prisma,
@@ -13,7 +13,7 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
   DEFAULT_PERMISSION_POLICIES,
-  ORG_PERMISSION_RESOURCES,
+  WORKSPACE_PERMISSION_RESOURCES,
   PLATFORM_PERMISSION_RESOURCES,
   PROTECTED_SUPERADMIN_PLATFORM_PERMISSIONS_MIN_MASK,
 } from '../constants/permission-policies.constant';
@@ -22,7 +22,7 @@ import type { PermissionMap } from '../types/permission-map.type';
 
 type UpdatePolicyInput = {
   scope: PermissionScope;
-  organizationId?: string;
+  workspaceId?: string;
   role: PermissionPolicyRole;
   resource: string;
   mask: number;
@@ -31,7 +31,7 @@ type UpdatePolicyInput = {
 
 type BulkUpdatePolicyInput = {
   scope: PermissionScope;
-  organizationId?: string;
+  workspaceId?: string;
   actorUserId: string;
   updates: Array<{
     role: PermissionPolicyRole;
@@ -67,16 +67,16 @@ export class PermissionsPolicyService {
     );
   }
 
-  async getOrganizationPermissionMap(
-    organizationId: string,
-    role: OrganizationRole,
+  async getWorkspacePermissionMap(
+    workspaceId: string,
+    role: WorkspaceRole,
   ): Promise<PermissionMap> {
-    const policyRole = this.toPolicyRoleFromOrganizationRole(role);
+    const policyRole = this.toPolicyRoleFromWorkspaceRole(role);
 
     const persisted = await this.prisma.permissionPolicy.findMany({
       where: {
-        scope: PermissionPolicyScope.organization,
-        organizationId,
+        scope: PermissionPolicyScope.workspace,
+        workspaceId,
         role: policyRole,
       },
       select: {
@@ -87,20 +87,20 @@ export class PermissionsPolicyService {
 
     return this.mergeWithDefaultMap(
       persisted,
-      PermissionScope.organization,
+      PermissionScope.workspace,
       policyRole,
     );
   }
 
-  async initializeOrganizationPolicies(organizationId: string) {
+  async initializeWorkspacePolicies(workspaceId: string) {
     const defaults = DEFAULT_PERMISSION_POLICIES.filter(
-      (item) => item.scope === PermissionScope.organization,
+      (item) => item.scope === PermissionScope.workspace,
     );
 
     for (const item of defaults) {
       await this.upsertPolicyRow(this.prisma, {
-        scope: PermissionScope.organization,
-        organizationId,
+        scope: PermissionScope.workspace,
+        workspaceId,
         role: item.role,
         resource: item.resource,
         mask: item.mask,
@@ -122,11 +122,11 @@ export class PermissionsPolicyService {
     };
   }
 
-  async listOrganizationPolicies(organizationId: string) {
+  async listWorkspacePolicies(workspaceId: string) {
     const policies = await this.prisma.permissionPolicy.findMany({
       where: {
-        scope: PermissionPolicyScope.organization,
-        organizationId,
+        scope: PermissionPolicyScope.workspace,
+        workspaceId,
       },
       orderBy: [{ role: 'asc' }, { resource: 'asc' }],
     });
@@ -149,14 +149,14 @@ export class PermissionsPolicyService {
     return this.prisma.$transaction(async (tx) => {
       const before = await this.findPolicyRow(tx, {
         scope: input.scope,
-        organizationId: input.organizationId,
+        workspaceId: input.workspaceId,
         role: input.role,
         resource: input.resource,
       });
 
       const updated = await this.upsertPolicyRow(tx, {
         scope: input.scope,
-        organizationId: input.organizationId,
+        workspaceId: input.workspaceId,
         role: input.role,
         resource: input.resource,
         mask: input.mask,
@@ -164,7 +164,7 @@ export class PermissionsPolicyService {
 
       const affectedUserIds = await this.resolveAffectedUserIds(tx, {
         scope: input.scope,
-        organizationId: input.organizationId,
+        workspaceId: input.workspaceId,
         role: input.role,
       });
 
@@ -210,14 +210,14 @@ export class PermissionsPolicyService {
 
         const before = await this.findPolicyRow(tx, {
           scope: input.scope,
-          organizationId: input.organizationId,
+          workspaceId: input.workspaceId,
           role: item.role,
           resource: item.resource,
         });
 
         const policy = await this.upsertPolicyRow(tx, {
           scope: input.scope,
-          organizationId: input.organizationId,
+          workspaceId: input.workspaceId,
           role: item.role,
           resource: item.resource,
           mask: item.mask,
@@ -225,7 +225,7 @@ export class PermissionsPolicyService {
 
         const users = await this.resolveAffectedUserIds(tx, {
           scope: input.scope,
-          organizationId: input.organizationId,
+          workspaceId: input.workspaceId,
           role: item.role,
         });
         for (const userId of users) {
@@ -260,19 +260,19 @@ export class PermissionsPolicyService {
     });
   }
 
-  async assertOrganizationOwnerCanManagePolicies(
+  async assertWorkspaceOwnerCanManagePolicies(
     actorUserId: string,
-    organizationId: string,
+    workspaceId: string,
   ) {
-    const membership = await this.prisma.organizationMember.findUnique({
+    const membership = await this.prisma.workspaceMember.findUnique({
       where: {
-        organizationId_userId: {
-          organizationId,
+        workspaceId_userId: {
+          workspaceId,
           userId: actorUserId,
         },
       },
       include: {
-        organization: {
+        workspace: {
           select: {
             isActive: true,
             deletedAt: true,
@@ -282,20 +282,15 @@ export class PermissionsPolicyService {
     });
 
     if (!membership || !membership.isActive) {
-      throw new ForbiddenException('Organization not found');
+      throw new ForbiddenException('Workspace not found');
     }
 
-    if (
-      !membership.organization.isActive ||
-      membership.organization.deletedAt
-    ) {
-      throw new ForbiddenException('Organization not found');
+    if (!membership.workspace.isActive || membership.workspace.deletedAt) {
+      throw new ForbiddenException('Workspace not found');
     }
 
-    if (membership.role !== OrganizationRole.owner) {
-      throw new ForbiddenException(
-        'Only organization owner can manage policies',
-      );
+    if (membership.role !== WorkspaceRole.owner) {
+      throw new ForbiddenException('Only workspace owner can manage policies');
     }
   }
 
@@ -305,17 +300,15 @@ export class PermissionsPolicyService {
       : PermissionPolicyRole.user;
   }
 
-  toPolicyRoleFromOrganizationRole(
-    role: OrganizationRole,
-  ): PermissionPolicyRole {
+  toPolicyRoleFromWorkspaceRole(role: WorkspaceRole): PermissionPolicyRole {
     switch (role) {
-      case OrganizationRole.owner:
+      case WorkspaceRole.owner:
         return PermissionPolicyRole.owner;
-      case OrganizationRole.admin:
+      case WorkspaceRole.admin:
         return PermissionPolicyRole.admin;
-      case OrganizationRole.member:
+      case WorkspaceRole.member:
         return PermissionPolicyRole.member;
-      case OrganizationRole.guest:
+      case WorkspaceRole.guest:
         return PermissionPolicyRole.guest;
       default:
         return PermissionPolicyRole.guest;
@@ -341,7 +334,7 @@ export class PermissionsPolicyService {
     }
 
     if (
-      scope === PermissionScope.organization &&
+      scope === PermissionScope.workspace &&
       role === PermissionPolicyRole.owner
     ) {
       throw new BadRequestException('Owner role policies are protected');
@@ -358,7 +351,7 @@ export class PermissionsPolicyService {
     client: PolicyClient,
     input: {
       scope: PermissionScope;
-      organizationId?: string;
+      workspaceId?: string;
       role: PermissionPolicyRole;
       resource: string;
     },
@@ -368,11 +361,9 @@ export class PermissionsPolicyService {
         scope:
           input.scope === PermissionScope.platform
             ? PermissionPolicyScope.platform
-            : PermissionPolicyScope.organization,
-        organizationId:
-          input.scope === PermissionScope.organization
-            ? input.organizationId
-            : null,
+            : PermissionPolicyScope.workspace,
+        workspaceId:
+          input.scope === PermissionScope.workspace ? input.workspaceId : null,
         role: input.role,
         resource: input.resource,
       },
@@ -383,7 +374,7 @@ export class PermissionsPolicyService {
     client: PolicyClient,
     input: {
       scope: PermissionScope;
-      organizationId?: string;
+      workspaceId?: string;
       role: PermissionPolicyRole;
       resource: string;
       mask: number;
@@ -405,10 +396,10 @@ export class PermissionsPolicyService {
         scope:
           input.scope === PermissionScope.platform
             ? PermissionPolicyScope.platform
-            : PermissionPolicyScope.organization,
-        organizationId:
-          input.scope === PermissionScope.organization
-            ? (input.organizationId ?? null)
+            : PermissionPolicyScope.workspace,
+        workspaceId:
+          input.scope === PermissionScope.workspace
+            ? (input.workspaceId ?? null)
             : null,
         role: input.role,
         resource: input.resource,
@@ -426,7 +417,7 @@ export class PermissionsPolicyService {
     const resourceKeys =
       scope === PermissionScope.platform
         ? PLATFORM_PERMISSION_RESOURCES
-        : ORG_PERMISSION_RESOURCES;
+        : WORKSPACE_PERMISSION_RESOURCES;
 
     for (const resource of resourceKeys) {
       const defaultItem = DEFAULT_PERMISSION_POLICIES.find(
@@ -449,7 +440,7 @@ export class PermissionsPolicyService {
     client: PolicyClient,
     input: {
       scope: PermissionScope;
-      organizationId?: string;
+      workspaceId?: string;
       role: PermissionPolicyRole;
     },
   ) {
@@ -471,19 +462,19 @@ export class PermissionsPolicyService {
       return users.map((user) => user.id);
     }
 
-    if (!input.organizationId) {
+    if (!input.workspaceId) {
       return [];
     }
 
-    const organizationRole = this.toOrganizationRole(input.role);
-    if (!organizationRole) {
+    const workspaceRole = this.toWorkspaceRole(input.role);
+    if (!workspaceRole) {
       return [];
     }
 
-    const memberships = await client.organizationMember.findMany({
+    const memberships = await client.workspaceMember.findMany({
       where: {
-        organizationId: input.organizationId,
-        role: organizationRole,
+        workspaceId: input.workspaceId,
+        role: workspaceRole,
         isActive: true,
       },
       select: {
@@ -494,16 +485,16 @@ export class PermissionsPolicyService {
     return memberships.map((membership) => membership.userId);
   }
 
-  private toOrganizationRole(role: PermissionPolicyRole) {
+  private toWorkspaceRole(role: PermissionPolicyRole) {
     switch (role) {
       case PermissionPolicyRole.owner:
-        return OrganizationRole.owner;
+        return WorkspaceRole.owner;
       case PermissionPolicyRole.admin:
-        return OrganizationRole.admin;
+        return WorkspaceRole.admin;
       case PermissionPolicyRole.member:
-        return OrganizationRole.member;
+        return WorkspaceRole.member;
       case PermissionPolicyRole.guest:
-        return OrganizationRole.guest;
+        return WorkspaceRole.guest;
       default:
         return null;
     }

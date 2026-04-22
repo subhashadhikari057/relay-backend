@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { AuditAction, AuditEntityType } from './audit.constants';
 
 type BuildAuditEventInput = {
-  organizationId?: string | null;
+  workspaceId?: string | null;
   actorUserId?: string | null;
   action: AuditAction;
   entityType: AuditEntityType;
@@ -14,7 +14,7 @@ type BuildAuditEventInput = {
 export class AuditEventFactory {
   build(input: BuildAuditEventInput) {
     return {
-      organizationId: input.organizationId ?? undefined,
+      workspaceId: input.workspaceId ?? undefined,
       actorUserId: input.actorUserId ?? undefined,
       action: input.action,
       entityType: input.entityType,

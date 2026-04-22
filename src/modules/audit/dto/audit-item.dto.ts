@@ -9,10 +9,10 @@ export class AuditItemDto {
   id!: string;
 
   @ApiPropertyOptional({
-    description: 'Organization id when event is organization-scoped.',
+    description: 'Workspace id when event is workspace-scoped.',
     example: '01968c8b-a4fc-7a08-b3d2-4e69ec7fcbf3',
   })
-  organizationId!: string | null;
+  workspaceId!: string | null;
 
   @ApiPropertyOptional({
     description: 'Actor user id when available.',

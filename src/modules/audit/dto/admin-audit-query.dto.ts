@@ -13,12 +13,12 @@ import { AuditAction } from '../shared/audit.constants';
 
 export class AdminAuditQueryDto {
   @ApiPropertyOptional({
-    description: 'Optional organization filter.',
+    description: 'Optional workspace filter.',
     example: '01968c8b-a4fc-7a08-b3d2-4e69ec7fcbf3',
   })
   @IsOptional()
   @IsUUID()
-  organizationId?: string;
+  workspaceId?: string;
 
   @ApiPropertyOptional({
     description: 'Optional actor user filter.',

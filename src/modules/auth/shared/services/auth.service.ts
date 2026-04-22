@@ -166,7 +166,7 @@ export class AuthService {
     const payload = await this.buildJwtPayload({
       user,
       sessionId: session.id,
-      activeOrganizationId: session.activeOrganizationId,
+      activeWorkspaceId: session.activeWorkspaceId,
     });
     const refreshTtl = this.tokenService.getRefreshTokenMaxAgeMs();
     const nextRefreshToken = await this.rotateSessionWithRetry({
@@ -212,14 +212,14 @@ export class AuthService {
     );
   }
 
-  async switchActiveOrganization(
+  async switchActiveWorkspace(
     userId: string,
     audience: AuthAudience,
     sessionId: string,
-    organizationId: string | null,
+    workspaceId: string | null,
   ) {
     if (audience !== 'mobile') {
-      throw new ForbiddenException('Active organization switch is mobile-only');
+      throw new ForbiddenException('Active workspace switch is mobile-only');
     }
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -234,27 +234,27 @@ export class AuthService {
       throw new UnauthorizedException('Session is invalid or expired');
     }
 
-    const resolvedActiveOrganizationId = organizationId
-      ? await this.resolveActiveOrganizationForUser(userId, organizationId)
+    const resolvedActiveWorkspaceId = workspaceId
+      ? await this.resolveActiveWorkspaceForUser(userId, workspaceId)
       : null;
 
-    await this.sessionService.setActiveOrganizationId(
+    await this.sessionService.setActiveWorkspaceId(
       sessionId,
-      resolvedActiveOrganizationId,
+      resolvedActiveWorkspaceId,
     );
 
     const accessToken = await this.tokenService.createAccessToken(
       await this.buildJwtPayload({
         user,
         sessionId,
-        activeOrganizationId: resolvedActiveOrganizationId,
+        activeWorkspaceId: resolvedActiveWorkspaceId,
       }),
     );
 
     return {
       accessToken,
       user: this.toSafeUser(user),
-      activeOrganizationId: resolvedActiveOrganizationId,
+      activeWorkspaceId: resolvedActiveWorkspaceId,
     };
   }
 
@@ -413,13 +413,13 @@ export class AuthService {
   private async issueTokensAndSession(user: User, context: AuthContext) {
     await this.enforceSessionLimitBeforeCreate(user.id);
     const refreshTtl = this.tokenService.getRefreshTokenMaxAgeMs();
-    const activeOrganizationId =
+    const activeWorkspaceId =
       user.platformRole === PlatformRole.user
-        ? await this.resolveDefaultActiveOrganization(user.id)
+        ? await this.resolveDefaultActiveWorkspace(user.id)
         : null;
     const sessionWithToken = await this.createSessionWithRetry({
       userId: user.id,
-      activeOrganizationId,
+      activeWorkspaceId,
       expiresAt: new Date(Date.now() + refreshTtl),
       deviceInfo: context.deviceInfo,
       ipAddress: context.ipAddress,
@@ -427,7 +427,7 @@ export class AuthService {
     const payload = await this.buildJwtPayload({
       user,
       sessionId: sessionWithToken.session.id,
-      activeOrganizationId: sessionWithToken.session.activeOrganizationId,
+      activeWorkspaceId: sessionWithToken.session.activeWorkspaceId,
     });
     const accessToken = await this.tokenService.createAccessToken(payload);
 
@@ -468,7 +468,7 @@ export class AuthService {
 
   private async createSessionWithRetry(input: {
     userId: string;
-    activeOrganizationId?: string | null;
+    activeWorkspaceId?: string | null;
     expiresAt: Date;
     deviceInfo?: string;
     ipAddress?: string;
@@ -484,7 +484,7 @@ export class AuthService {
         const session = await this.sessionService.createSession({
           userId: input.userId,
           refreshToken,
-          activeOrganizationId: input.activeOrganizationId ?? null,
+          activeWorkspaceId: input.activeWorkspaceId ?? null,
           expiresAt: input.expiresAt,
           deviceInfo: input.deviceInfo,
           ipAddress: input.ipAddress,
@@ -562,38 +562,38 @@ export class AuthService {
     return typeof target === 'string' && target.includes('token_hash');
   }
 
-  private async resolveDefaultActiveOrganization(userId: string) {
-    const membership = await this.prisma.organizationMember.findFirst({
+  private async resolveDefaultActiveWorkspace(userId: string) {
+    const membership = await this.prisma.workspaceMember.findFirst({
       where: {
         userId,
         isActive: true,
-        organization: {
+        workspace: {
           isActive: true,
           deletedAt: null,
         },
       },
       orderBy: [{ joinedAt: 'desc' }],
       select: {
-        organizationId: true,
+        workspaceId: true,
       },
     });
 
-    return membership?.organizationId ?? null;
+    return membership?.workspaceId ?? null;
   }
 
-  private async resolveActiveOrganizationForUser(
+  private async resolveActiveWorkspaceForUser(
     userId: string,
-    organizationId: string,
+    workspaceId: string,
   ) {
-    const membership = await this.prisma.organizationMember.findUnique({
+    const membership = await this.prisma.workspaceMember.findUnique({
       where: {
-        organizationId_userId: {
-          organizationId,
+        workspaceId_userId: {
+          workspaceId,
           userId,
         },
       },
       include: {
-        organization: {
+        workspace: {
           select: {
             isActive: true,
             deletedAt: true,
@@ -603,42 +603,39 @@ export class AuthService {
     });
 
     if (!membership || !membership.isActive) {
-      throw new NotFoundException('Organization not found');
+      throw new NotFoundException('Workspace not found');
     }
 
-    if (
-      !membership.organization.isActive ||
-      membership.organization.deletedAt
-    ) {
-      throw new NotFoundException('Organization not found');
+    if (!membership.workspace.isActive || membership.workspace.deletedAt) {
+      throw new NotFoundException('Workspace not found');
     }
 
-    return organizationId;
+    return workspaceId;
   }
 
   private async buildJwtPayload(input: {
     user: User;
     sessionId: string;
-    activeOrganizationId?: string | null;
+    activeWorkspaceId?: string | null;
   }) {
     const platformPermissions =
       await this.permissionsPolicyService.getPlatformPermissionMap(
         input.user.platformRole,
       );
 
-    let organizationPermissions: Record<string, number> | undefined;
-    let activeOrganizationId: string | undefined;
+    let workspacePermissions: Record<string, number> | undefined;
+    let activeWorkspaceId: string | undefined;
 
-    if (input.activeOrganizationId) {
-      const membership = await this.prisma.organizationMember.findUnique({
+    if (input.activeWorkspaceId) {
+      const membership = await this.prisma.workspaceMember.findUnique({
         where: {
-          organizationId_userId: {
-            organizationId: input.activeOrganizationId,
+          workspaceId_userId: {
+            workspaceId: input.activeWorkspaceId,
             userId: input.user.id,
           },
         },
         include: {
-          organization: {
+          workspace: {
             select: {
               isActive: true,
               deletedAt: true,
@@ -650,15 +647,15 @@ export class AuthService {
       if (
         membership &&
         membership.isActive &&
-        membership.organization.isActive &&
-        !membership.organization.deletedAt
+        membership.workspace.isActive &&
+        !membership.workspace.deletedAt
       ) {
-        organizationPermissions =
-          await this.permissionsPolicyService.getOrganizationPermissionMap(
-            input.activeOrganizationId,
+        workspacePermissions =
+          await this.permissionsPolicyService.getWorkspacePermissionMap(
+            input.activeWorkspaceId,
             membership.role,
           );
-        activeOrganizationId = input.activeOrganizationId;
+        activeWorkspaceId = input.activeWorkspaceId;
       }
     }
 
@@ -668,8 +665,8 @@ export class AuthService {
       platformRole: input.user.platformRole,
       sessionId: input.sessionId,
       platformPermissions,
-      activeOrganizationId,
-      organizationPermissions,
+      activeWorkspaceId,
+      workspacePermissions,
       permissionsVersion: Date.now(),
       tokenVersion: input.user.tokenVersion,
     };

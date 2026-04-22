@@ -6,8 +6,8 @@ export interface AuthJwtPayload {
   platformRole: PlatformRole;
   sessionId: string;
   platformPermissions: Record<string, number>;
-  activeOrganizationId?: string;
-  organizationPermissions?: Record<string, number>;
+  activeWorkspaceId?: string;
+  workspacePermissions?: Record<string, number>;
   permissionsVersion?: number;
   tokenVersion: number;
 }
