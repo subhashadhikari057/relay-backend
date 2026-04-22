@@ -1,5 +1,315 @@
 # Entity and Relation (Database)
 
+## Scope
+
+This document reflects the **current implemented Prisma schema** in `prisma/schema.prisma`.
+It is intentionally implementation-first (not future/planned entities).
+
+- Database: PostgreSQL
+- ORM: Prisma
+- ID strategy currently in code: `@default(uuid())`
+- Case-insensitive text: `CITEXT` used where specified
+
+---
+
+## Enums
+
+### `PlatformRole`
+- `superadmin`
+- `user`
+
+### `WorkspaceRole`
+- `owner`
+- `admin`
+- `member`
+- `guest`
+
+### `ChannelType`
+- `public`
+- `private`
+
+### `ChannelMemberRole`
+- `admin`
+- `member`
+
+### `PermissionPolicyScope`
+- `platform`
+- `workspace`
+
+### `PermissionPolicyRole`
+- `superadmin`
+- `user`
+- `owner`
+- `admin`
+- `member`
+- `guest`
+
+---
+
+## Tables
+
+## `users`
+
+| Column | Type | Constraints | Notes |
+| --- | --- | --- | --- |
+| `id` | UUID | PK, default uuid() | |
+| `email` | CITEXT | NOT NULL, UNIQUE | case-insensitive unique |
+| `password_hash` | TEXT | NOT NULL | |
+| `full_name` | VARCHAR(255) | NOT NULL | |
+| `display_name` | VARCHAR(80) | NULL | |
+| `avatar_url` | TEXT | NULL | |
+| `status` | VARCHAR(100) | NULL | |
+| `is_active` | BOOLEAN | NOT NULL, default true | soft deactivation |
+| `platform_role` | enum PlatformRole | NOT NULL, default `user` | |
+| `token_version` | INTEGER | NOT NULL, default 1 | JWT invalidation version |
+| `email_verified_at` | TIMESTAMPTZ(6) | NULL | |
+| `last_login_at` | TIMESTAMPTZ(6) | NULL | |
+| `created_at` | TIMESTAMPTZ(6) | NOT NULL, default now() | |
+| `updated_at` | TIMESTAMPTZ(6) | NOT NULL, updatedAt | |
+
+---
+
+## `sessions`
+
+| Column | Type | Constraints | Notes |
+| --- | --- | --- | --- |
+| `id` | UUID | PK, default uuid() | |
+| `user_id` | UUID | FK -> users.id, ON DELETE CASCADE | |
+| `token_hash` | TEXT | NOT NULL, UNIQUE | hashed refresh token |
+| `active_workspace_id` | UUID | NULL | selected workspace context |
+| `expires_at` | TIMESTAMPTZ(6) | NOT NULL | |
+| `revoked_at` | TIMESTAMPTZ(6) | NULL | |
+| `device_info` | TEXT | NULL | |
+| `ip_address` | INET | NULL | |
+| `created_at` | TIMESTAMPTZ(6) | NOT NULL, default now() | |
+| `last_active_at` | TIMESTAMPTZ(6) | NOT NULL, default now() | |
+
+Indexes:
+- `sessions_user_id_idx`
+- `sessions_expires_at_idx`
+- `sessions_last_active_at_idx`
+
+---
+
+## `email_verification_tokens`
+
+| Column | Type | Constraints | Notes |
+| --- | --- | --- | --- |
+| `id` | UUID | PK, default uuid() | |
+| `user_id` | UUID | FK -> users.id, ON DELETE CASCADE | |
+| `token_hash` | TEXT | NOT NULL, UNIQUE | hashed token |
+| `expires_at` | TIMESTAMPTZ(6) | NOT NULL | |
+| `used_at` | TIMESTAMPTZ(6) | NULL | |
+| `created_at` | TIMESTAMPTZ(6) | NOT NULL, default now() | |
+
+Indexes:
+- `email_verification_tokens_user_id_idx`
+- `email_verification_tokens_expires_at_idx`
+
+---
+
+## `workspaces`
+
+| Column | Type | Constraints | Notes |
+| --- | --- | --- | --- |
+| `id` | UUID | PK, default uuid() | |
+| `name` | VARCHAR(120) | NOT NULL | |
+| `slug` | VARCHAR(80) | NOT NULL, UNIQUE | |
+| `description` | VARCHAR(500) | NULL | |
+| `avatar_url` | TEXT | NULL | |
+| `is_active` | BOOLEAN | NOT NULL, default true | enabled/disabled |
+| `deleted_at` | TIMESTAMPTZ(6) | NULL | soft delete marker |
+| `created_by_id` | UUID | FK -> users.id, ON DELETE RESTRICT | hard delete blocked |
+| `created_at` | TIMESTAMPTZ(6) | NOT NULL, default now() | |
+| `updated_at` | TIMESTAMPTZ(6) | NOT NULL, updatedAt | |
+
+Indexes:
+- `workspaces_created_by_id_idx`
+- `workspaces_is_active_idx`
+- `workspaces_deleted_at_idx`
+
+---
+
+## `workspace_members`
+
+| Column | Type | Constraints | Notes |
+| --- | --- | --- | --- |
+| `id` | UUID | PK, default uuid() | |
+| `workspace_id` | UUID | FK -> workspaces.id, ON DELETE CASCADE | |
+| `user_id` | UUID | FK -> users.id, ON DELETE CASCADE | |
+| `role` | enum WorkspaceRole | NOT NULL, default `member` | |
+| `joined_at` | TIMESTAMPTZ(6) | NOT NULL, default now() | |
+| `invited_by_id` | UUID | FK -> users.id, ON DELETE SET NULL | |
+| `is_active` | BOOLEAN | NOT NULL, default true | membership active flag |
+
+Constraints:
+- `UNIQUE(workspace_id, user_id)`
+
+Indexes:
+- `workspace_members_user_id_idx`
+- `workspace_members_workspace_id_role_idx`
+- `workspace_members_is_active_idx`
+
+---
+
+## `workspace_invites`
+
+| Column | Type | Constraints | Notes |
+| --- | --- | --- | --- |
+| `id` | UUID | PK, default uuid() | |
+| `workspace_id` | UUID | FK -> workspaces.id, ON DELETE CASCADE | |
+| `email` | CITEXT | NOT NULL | case-insensitive |
+| `role` | enum WorkspaceRole | NOT NULL, default `member` | |
+| `token_hash` | TEXT | NOT NULL, UNIQUE | hashed invite token |
+| `invited_by_id` | UUID | FK -> users.id, ON DELETE RESTRICT | |
+| `expires_at` | TIMESTAMPTZ(6) | NOT NULL | |
+| `accepted_at` | TIMESTAMPTZ(6) | NULL | |
+| `revoked_at` | TIMESTAMPTZ(6) | NULL | |
+| `created_at` | TIMESTAMPTZ(6) | NOT NULL, default now() | |
+
+Indexes:
+- `workspace_invites_workspace_id_email_idx`
+- `workspace_invites_workspace_id_idx`
+- `workspace_invites_email_idx`
+- `workspace_invites_expires_at_idx`
+
+Unique policy for pending invites is implemented via partial unique index in migration SQL:
+- unique `(workspace_id, email)` where `accepted_at IS NULL AND revoked_at IS NULL`
+
+---
+
+## `permission_policies`
+
+| Column | Type | Constraints | Notes |
+| --- | --- | --- | --- |
+| `id` | UUID | PK, default uuid() | |
+| `scope` | enum PermissionPolicyScope | NOT NULL | `platform` or `workspace` |
+| `workspace_id` | UUID | NULL, FK -> workspaces.id, ON DELETE CASCADE | null for platform scope |
+| `role` | enum PermissionPolicyRole | NOT NULL | |
+| `resource` | VARCHAR(120) | NOT NULL | e.g. `workspace.channel` |
+| `mask` | INTEGER | NOT NULL | bitmask permissions |
+| `created_at` | TIMESTAMPTZ(6) | NOT NULL, default now() | |
+| `updated_at` | TIMESTAMPTZ(6) | NOT NULL, updatedAt | |
+
+Constraints:
+- `UNIQUE(scope, workspace_id, role, resource)`
+
+Indexes:
+- `permission_policies_scope_role_resource_idx`
+- `permission_policies_scope_workspace_id_role_resource_idx`
+- `permission_policies_workspace_id_idx`
+
+---
+
+## `audit_logs`
+
+| Column | Type | Constraints | Notes |
+| --- | --- | --- | --- |
+| `id` | UUID | PK, default uuid() | |
+| `workspace_id` | UUID | NULL, FK -> workspaces.id, ON DELETE SET NULL | global events can be null |
+| `actor_user_id` | UUID | NULL, FK -> users.id, ON DELETE SET NULL | |
+| `action` | VARCHAR(120) | NOT NULL | |
+| `entity_type` | VARCHAR(80) | NOT NULL | |
+| `entity_id` | UUID | NOT NULL | |
+| `metadata` | JSONB | NULL | |
+| `created_at` | TIMESTAMPTZ(6) | NOT NULL, default now() | |
+
+Indexes:
+- `audit_logs_workspace_id_created_at_idx`
+- `audit_logs_action_created_at_idx`
+- `audit_logs_actor_user_id_created_at_idx`
+- `audit_logs_entity_type_entity_id_idx`
+
+---
+
+## `channels`
+
+| Column | Type | Constraints | Notes |
+| --- | --- | --- | --- |
+| `id` | UUID | PK, default uuid() | |
+| `workspace_id` | UUID | FK -> workspaces.id, ON DELETE CASCADE | |
+| `created_by_id` | UUID | FK -> users.id, ON DELETE RESTRICT | |
+| `name` | CITEXT | NOT NULL | case-insensitive in workspace |
+| `topic` | VARCHAR(250) | NULL | channel topic |
+| `description` | VARCHAR(500) | NULL | channel description |
+| `type` | enum ChannelType | NOT NULL, default `public` | |
+| `is_archived` | BOOLEAN | NOT NULL, default false | |
+| `created_at` | TIMESTAMPTZ(6) | NOT NULL, default now() | |
+| `updated_at` | TIMESTAMPTZ(6) | NOT NULL, updatedAt | |
+
+Constraints:
+- `UNIQUE(workspace_id, name)`
+
+Indexes:
+- `channels_workspace_id_is_archived_type_idx`
+- `channels_workspace_id_created_at_idx`
+- `channels_created_by_id_idx`
+
+---
+
+## `channel_members`
+
+| Column | Type | Constraints | Notes |
+| --- | --- | --- | --- |
+| `channel_id` | UUID | FK -> channels.id, ON DELETE CASCADE | |
+| `user_id` | UUID | FK -> users.id, ON DELETE CASCADE | |
+| `role` | enum ChannelMemberRole | NOT NULL, default `member` | |
+| `joined_at` | TIMESTAMPTZ(6) | NOT NULL, default now() | |
+
+Constraints:
+- `PRIMARY KEY(channel_id, user_id)`
+
+Indexes:
+- `channel_members_user_id_idx`
+- `channel_members_channel_id_joined_at_idx`
+
+---
+
+## `user_channel_reads`
+
+| Column | Type | Constraints | Notes |
+| --- | --- | --- | --- |
+| `user_id` | UUID | FK -> users.id, ON DELETE CASCADE | |
+| `channel_id` | UUID | FK -> channels.id, ON DELETE CASCADE | |
+| `last_read_message_id` | UUID | NULL | intentionally non-FK currently |
+| `last_read_at` | TIMESTAMPTZ(6) | NULL | |
+| `updated_at` | TIMESTAMPTZ(6) | NOT NULL, updatedAt | |
+
+Constraints:
+- `PRIMARY KEY(user_id, channel_id)`
+
+Indexes:
+- `user_channel_reads_channel_id_idx`
+
+---
+
+## Relation Summary
+
+- `users` -> `sessions` (1:N)
+- `users` -> `email_verification_tokens` (1:N)
+- `users` -> `workspaces` via `workspaces.created_by_id` (1:N, restrict delete)
+- `users` <-> `workspaces` via `workspace_members` (M:N)
+- `workspaces` -> `workspace_invites` (1:N)
+- `workspaces` -> `channels` (1:N)
+- `channels` <-> `users` via `channel_members` (M:N)
+- `users` x `channels` read state via `user_channel_reads`
+- `workspaces` + `users` -> `audit_logs` (nullable FKs with set null)
+- `workspaces` -> `permission_policies` (1:N for workspace-scoped policies)
+
+---
+
+## Notes
+
+- This document intentionally excludes planned-but-not-yet-implemented tables (messages, reactions, DM tables, notifications, auth_accounts, password_reset_tokens, etc.).
+- Update this file whenever `prisma/schema.prisma` changes to avoid drift/confusion.
+
+---
+
+## Planning Reference (Preserved)
+
+The section below is your earlier full planning draft, kept intentionally for future modules.
+
+
 # Slack-Like App — Database Design
 
 > **Version:** 1.0 · **Phase:** Planning · **Target DB:** PostgreSQL · **ID Strategy:** UUID v7
