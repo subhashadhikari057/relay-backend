@@ -105,6 +105,15 @@ relay-backend/
     │
     └── modules/
         ├── auth/
+        │   ├── auth.module.ts
+        │   ├── admin/
+        │   │   ├── auth.admin.controller.ts
+        │   │   ├── auth.admin.service.ts
+        │   │   └── dto/
+        │   └── mobile/
+        │       ├── auth.mobile.controller.ts
+        │       ├── auth.mobile.service.ts
+        │       └── dto/
         ├── users/
         ├── workspaces/
         ├── members/
@@ -125,14 +134,24 @@ Relay follows a **modular monolith** pattern using NestJS feature modules. Each 
 
 ```
 modules/<domain>/
-├── <domain>.controller.ts   → HTTP request handling
-├── <domain>.service.ts      → Business logic
-└── dto/                     → Input/output validation
+├── <domain>.module.ts            → domain wiring
+├── admin/                        → superadmin/platform-owner APIs
+│   ├── <domain>.admin.controller.ts
+│   ├── <domain>.admin.service.ts
+│   └── dto/
+└── mobile/                       → customer/mobile onboarding APIs
+    ├── <domain>.mobile.controller.ts
+    ├── <domain>.mobile.service.ts
+    └── dto/
 ```
 
 ### Directory Breakdown
 
 **`modules/`** — Core of the application. Each folder is a business domain, not a technical layer. This keeps the codebase intuitive and scalable.
+
+Audience split convention inside every domain:
+- `admin/` serves `/api/admin/*` endpoints
+- `mobile/` serves `/api/mobile/*` endpoints
 
 **`common/`** — Shared cross-cutting concerns only:
 - `guards/` — Authentication & authorization
@@ -158,8 +177,6 @@ modules/<domain>/
 4. **Centralized error handling** — consistent error responses across the API
 5. **Secure by default** — auth guards, rate limiting, helmet headers, input sanitization
 6. **Scalable without over-engineering** — simple now, extensible later
-
----
 
 ## Getting Started
 
