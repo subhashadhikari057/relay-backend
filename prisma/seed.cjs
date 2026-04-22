@@ -221,6 +221,7 @@ async function main() {
     [PermissionPolicyRole.owner, 'workspace.permissions', ALL],
     [PermissionPolicyRole.owner, 'workspace.channel', ALL],
     [PermissionPolicyRole.owner, 'workspace.channel_member', ALL],
+    [PermissionPolicyRole.owner, 'workspace.message', ALL],
     [PermissionPolicyRole.admin, 'workspace.workspace', READ | UPDATE],
     [PermissionPolicyRole.admin, 'workspace.invite', READ | WRITE | DELETE],
     [PermissionPolicyRole.admin, 'workspace.member', READ | UPDATE | DELETE],
@@ -228,6 +229,7 @@ async function main() {
     [PermissionPolicyRole.admin, 'workspace.permissions', 0],
     [PermissionPolicyRole.admin, 'workspace.channel', READ | WRITE],
     [PermissionPolicyRole.admin, 'workspace.channel_member', ALL],
+    [PermissionPolicyRole.admin, 'workspace.message', ALL],
     [PermissionPolicyRole.member, 'workspace.workspace', READ],
     [PermissionPolicyRole.member, 'workspace.invite', 0],
     [PermissionPolicyRole.member, 'workspace.member', READ],
@@ -235,6 +237,7 @@ async function main() {
     [PermissionPolicyRole.member, 'workspace.permissions', 0],
     [PermissionPolicyRole.member, 'workspace.channel', READ | WRITE],
     [PermissionPolicyRole.member, 'workspace.channel_member', READ],
+    [PermissionPolicyRole.member, 'workspace.message', ALL],
     [PermissionPolicyRole.guest, 'workspace.workspace', READ],
     [PermissionPolicyRole.guest, 'workspace.invite', 0],
     [PermissionPolicyRole.guest, 'workspace.member', READ],
@@ -242,6 +245,7 @@ async function main() {
     [PermissionPolicyRole.guest, 'workspace.permissions', 0],
     [PermissionPolicyRole.guest, 'workspace.channel', READ],
     [PermissionPolicyRole.guest, 'workspace.channel_member', READ],
+    [PermissionPolicyRole.guest, 'workspace.message', READ],
   ];
 
   for (const [role, resource, mask] of orgPolicies) {

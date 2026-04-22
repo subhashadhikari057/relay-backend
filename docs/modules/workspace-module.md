@@ -62,6 +62,20 @@ Workspace access is valid only when:
 Membership access is valid only when:
 - `workspace_members.is_active = true`
 
+### Permission Snapshot and Token Refresh
+
+Workspace permissions are embedded in access JWT as an active-workspace snapshot.
+
+Implication:
+- accepting an invite updates DB membership immediately
+- but current access token does not auto-refresh in the same request
+- new workspace/channel/message permissions become effective only after token reissue (`refresh` or `login`) and active-workspace selection
+
+Frontend required sequence after `POST /api/mobile/workspaces/invites/accept`:
+1. Call `POST /api/mobile/auth/refresh` (or re-login).
+2. Call `POST /api/mobile/auth/active-workspace` with accepted `workspaceId`.
+3. Retry protected workspace/channel/message APIs.
+
 ### Guest Role Behavior
 
 `guest` capabilities:

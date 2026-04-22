@@ -33,6 +33,12 @@ enum ChannelMemberRole {
   member
 }
 
+enum MessageType {
+  text
+  file
+  system
+}
+
 enum PermissionPolicyScope {
   platform
   workspace
@@ -68,6 +74,7 @@ model User {
   channelsCreated         Channel[]          @relation("channel_created_by")
   channelMemberships      ChannelMember[]
   channelReads            UserChannelRead[]
+  messages               Message[]          @relation("message_sender")
   workspacesCreated    Workspace[]      @relation("workspace_created_by")
   workspaceMemberships WorkspaceMember[] @relation("workspace_member_user")
   workspaceInvitesSent WorkspaceInvite[] @relation("workspace_invited_by")
@@ -128,6 +135,7 @@ model Workspace {
   members   WorkspaceMember[]
   invites   WorkspaceInvite[]
   channels  Channel[]
+  messages  Message[]
   auditLogs AuditLog[]
   permissionPolicies PermissionPolicy[]
 
@@ -234,6 +242,7 @@ model Channel {
   createdBy User              @relation("channel_created_by", fields: [createdById], references: [id], onDelete: Restrict)
   members   ChannelMember[]
   reads     UserChannelRead[]
+  messages  Message[]
 
   @@unique([workspaceId, name])
   @@index([workspaceId, isArchived, type])
@@ -270,4 +279,51 @@ model UserChannelRead {
   @@id([userId, channelId])
   @@index([channelId])
   @@map("user_channel_reads")
+}
+
+model Message {
+  id               String      @id @default(uuid()) @db.Uuid
+  workspaceId      String      @map("workspace_id") @db.Uuid
+  channelId        String      @map("channel_id") @db.Uuid
+  senderUserId     String      @map("sender_user_id") @db.Uuid
+  type             MessageType @default(text)
+  content          String?
+  metadata         Json?       @db.JsonB
+  parentMessageId  String?     @map("parent_message_id") @db.Uuid
+  editedAt         DateTime?   @map("edited_at") @db.Timestamptz(6)
+  deletedAt        DateTime?   @map("deleted_at") @db.Timestamptz(6)
+  createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace       Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  channel         Channel              @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  sender          User                 @relation("message_sender", fields: [senderUserId], references: [id], onDelete: Restrict)
+  parentMessage   Message?             @relation("message_thread", fields: [parentMessageId], references: [id], onDelete: SetNull)
+  threadReplies   Message[]            @relation("message_thread")
+  attachments     MessageAttachment[]
+
+  @@index([channelId, createdAt, id])
+  @@index([parentMessageId, createdAt, id])
+  @@index([senderUserId, createdAt])
+  @@index([workspaceId, channelId, deletedAt])
+  @@map("messages")
+}
+
+model MessageAttachment {
+  id           String   @id @default(uuid()) @db.Uuid
+  messageId    String   @map("message_id") @db.Uuid
+  path         String
+  originalName String   @map("original_name")
+  mimeType     String   @map("mime_type")
+  size         Int
+  sortOrder    Int      @default(0) @map("sort_order")
+  width        Int?
+  height       Int?
+  durationMs   Int?     @map("duration_ms")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId, sortOrder])
+  @@map("message_attachments")
 }

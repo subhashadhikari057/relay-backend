@@ -38,4 +38,10 @@ export default () => ({
     localRoot: process.env.UPLOAD_LOCAL_ROOT ?? 'uploads',
     enableScan: process.env.UPLOAD_ENABLE_SCAN === 'true',
   },
+  messages: {
+    editWindowMinutes: parseInt(
+      process.env.MESSAGE_EDIT_WINDOW_MINUTES ?? '30',
+      10,
+    ),
+  },
 });
