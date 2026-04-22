@@ -95,7 +95,7 @@ export function setupApiDocs(app: INestApplication) {
     '/api/api-docs',
     apiReference({
       pageTitle: 'Relay Admin API Docs',
-      theme: 'bluePlanet',
+      theme: 'default',
       operationTitleSource: 'summary',
       showOperationId: true,
       hideModels: true,
