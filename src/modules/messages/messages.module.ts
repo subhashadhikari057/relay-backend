@@ -3,10 +3,20 @@ import { AuthModule } from '../auth/auth.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { MessagesMobileController } from './mobile/messages.mobile.controller';
 import { MessagesMobileService } from './mobile/messages.mobile.service';
+import { MessageAccessService } from './mobile/services/message-access.service';
+import { MessagePresenterService } from './mobile/services/message-presenter.service';
+import { MessageQueryService } from './mobile/services/message-query.service';
+import { MessageValidationService } from './mobile/services/message-validation.service';
 
 @Module({
   imports: [AuthModule, WorkspacesModule],
   controllers: [MessagesMobileController],
-  providers: [MessagesMobileService],
+  providers: [
+    MessagesMobileService,
+    MessageAccessService,
+    MessageValidationService,
+    MessagePresenterService,
+    MessageQueryService,
+  ],
 })
 export class MessagesModule {}
