@@ -16,11 +16,13 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { PlatformRole } from '@prisma/client';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { PlatformRoles } from 'src/modules/auth/shared/decorators/platform-roles.decorator';
 import { AccessTokenGuard } from 'src/modules/auth/shared/guards/access-token.guard';
-import { PlatformRoleGuard } from 'src/modules/auth/shared/guards/platform-role.guard';
+import { PermissionAction } from 'src/modules/permissions/constants/permission-actions.constant';
+import { PlatformPermissionResource } from 'src/modules/permissions/constants/permission-resources.constant';
+import { PermissionScope } from 'src/modules/permissions/constants/permission-scope.constant';
+import { RequirePermission } from 'src/modules/permissions/decorators/require-permission.decorator';
+import { PermissionGuard } from 'src/modules/permissions/guards/permission.guard';
 import {
   MAX_MULTIPLE_FILES_COUNT,
   MAX_SINGLE_FILE_SIZE_BYTES,
@@ -36,13 +38,17 @@ import { UploadService } from '../shared/services/upload.service';
 
 @Controller('api/admin/upload')
 @ApiTags('Admin Upload')
-@UseGuards(AccessTokenGuard, PlatformRoleGuard)
-@PlatformRoles(PlatformRole.superadmin)
+@UseGuards(AccessTokenGuard, PermissionGuard)
 @ApiBearerAuth('bearer')
 export class UploadAdminController {
   constructor(private readonly uploadService: UploadService) {}
 
   @Post('single')
+  @RequirePermission({
+    scope: PermissionScope.platform,
+    resource: PlatformPermissionResource.UPLOAD,
+    action: PermissionAction.write,
+  })
   @UseInterceptors(
     FileInterceptor('file', {
       limits: {
@@ -78,6 +84,11 @@ export class UploadAdminController {
   }
 
   @Post('multiple')
+  @RequirePermission({
+    scope: PermissionScope.platform,
+    resource: PlatformPermissionResource.UPLOAD,
+    action: PermissionAction.write,
+  })
   @UseInterceptors(
     FilesInterceptor('files', MAX_MULTIPLE_FILES_COUNT, {
       limits: {

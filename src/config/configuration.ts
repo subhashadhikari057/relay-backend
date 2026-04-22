@@ -24,6 +24,10 @@ export default () => ({
       process.env.AUTH_MAX_ACTIVE_SESSIONS_PER_USER ?? '0',
       10,
     ),
+    sessionTouchIntervalSeconds: parseInt(
+      process.env.AUTH_SESSION_TOUCH_INTERVAL_SECONDS ?? '300',
+      10,
+    ),
     emailVerificationTokenExpiresIn:
       process.env.EMAIL_VERIFICATION_TOKEN_EXPIRES_IN ?? '20m',
     emailVerificationUrlBase:
@@ -32,5 +36,6 @@ export default () => ({
   },
   upload: {
     localRoot: process.env.UPLOAD_LOCAL_ROOT ?? 'uploads',
+    enableScan: process.env.UPLOAD_ENABLE_SCAN === 'true',
   },
 });

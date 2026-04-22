@@ -15,7 +15,9 @@ export const envSchema = z.object({
   AUTH_COOKIE_PATH: z.string().default('/api'),
   AUTH_COOKIE_DOMAIN: z.string().optional(),
   AUTH_MAX_ACTIVE_SESSIONS_PER_USER: z.string().default('0'),
+  AUTH_SESSION_TOUCH_INTERVAL_SECONDS: z.string().default('300'),
   EMAIL_VERIFICATION_TOKEN_EXPIRES_IN: z.string().default('20m'),
   EMAIL_VERIFICATION_URL_BASE: z.string().url(),
   UPLOAD_LOCAL_ROOT: z.string().default('uploads'),
+  UPLOAD_ENABLE_SCAN: z.enum(['true', 'false']).default('false'),
 });

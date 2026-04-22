@@ -29,16 +29,22 @@ import { EmailVerificationConfirmResponseDto } from '../shared/dto/email-verific
 import { EmailVerificationRequestResponseDto } from '../shared/dto/email-verification-request-response.dto';
 import { LogoutResponseDto } from '../shared/dto/logout-response.dto';
 import { RevokeSessionsResponseDto } from '../shared/dto/revoke-sessions-response.dto';
+import { SwitchActiveOrganizationResponseDto } from '../shared/dto/switch-active-organization-response.dto';
 import { AccessTokenGuard } from '../shared/guards/access-token.guard';
 import type { AuthJwtPayload } from '../shared/interfaces/auth-jwt-payload.interface';
 import { AuthCookieService } from '../shared/services/auth-cookie.service';
 import { AuthService } from '../shared/services/auth.service';
 import { toAuthTokenResponse } from '../shared/utils/auth-response.util';
-import { revokeSessionFromCookieIfPresent } from '../shared/utils/auth-session.util';
+import {
+  loginAndSetAuthCookies,
+  logoutAndClearAuthCookies,
+  refreshAndSetAuthCookies,
+} from '../shared/utils/auth-controller.util';
 import { ConfirmEmailVerificationDto } from './dto/confirm-email-verification.dto';
 import { LoginMobileDto } from './dto/login-mobile.dto';
 import { RequestEmailVerificationDto } from './dto/request-email-verification.dto';
 import { SignupMobileDto } from './dto/signup-mobile.dto';
+import { SwitchActiveOrganizationDto } from './dto/switch-active-organization.dto';
 
 @Controller('api/mobile/auth')
 @ApiTags('Mobile Auth')
@@ -97,17 +103,14 @@ export class MobileAuthController {
     @Ip() ipAddress: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.authService.login(dto, 'mobile', {
-      deviceInfo: userAgent,
-      ipAddress,
-    });
-
-    this.authCookieService.setAuthCookies(
+    return loginAndSetAuthCookies(
+      this.authService,
+      this.authCookieService,
+      'mobile',
+      dto,
+      { userAgent, ipAddress },
       response,
-      result.refreshToken,
-      result.sessionId,
     );
-    return toAuthTokenResponse(result);
   }
 
   @Post('refresh')
@@ -129,25 +132,14 @@ export class MobileAuthController {
     @Ip() ipAddress: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const { refreshToken, sessionId } =
-      this.authCookieService.getRefreshCookiePairOrThrow(request.cookies);
-
-    const result = await this.authService.refresh(
-      sessionId,
-      refreshToken,
+    return refreshAndSetAuthCookies(
+      this.authService,
+      this.authCookieService,
       'mobile',
-      {
-        deviceInfo: userAgent,
-        ipAddress,
-      },
-    );
-
-    this.authCookieService.setAuthCookies(
+      request,
+      { userAgent, ipAddress },
       response,
-      result.refreshToken,
-      result.sessionId,
     );
-    return toAuthTokenResponse(result);
   }
 
   @Post('logout')
@@ -166,16 +158,13 @@ export class MobileAuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    await revokeSessionFromCookieIfPresent(
-      request,
-      'mobile',
+    return logoutAndClearAuthCookies(
       this.authService,
       this.authCookieService,
+      'mobile',
+      request,
+      response,
     );
-
-    this.authCookieService.clearAuthCookies(response);
-
-    return { success: true };
   }
 
   @Get('me')
@@ -304,5 +293,40 @@ export class MobileAuthController {
       'mobile',
       currentUser.sessionId,
     );
+  }
+
+  @Post('active-organization')
+  @UseGuards(AccessTokenGuard)
+  @ApiBearerAuth('bearer')
+  @ApiOperation({
+    operationId: 'mobileAuthSwitchActiveOrganization',
+    summary: 'Switch Active Organization',
+    description:
+      'Reissue access token with active organization permission map for selected organization.',
+  })
+  @ApiBody({
+    type: SwitchActiveOrganizationDto,
+    description: 'Active organization switch payload.',
+  })
+  @ApiOkResponse({
+    type: SwitchActiveOrganizationResponseDto,
+    description:
+      'Active organization switched and token reissued successfully.',
+  })
+  async switchActiveOrganization(
+    @CurrentUser() currentUser: AuthJwtPayload,
+    @Body() dto: SwitchActiveOrganizationDto,
+  ) {
+    const result = await this.authService.switchActiveOrganization(
+      currentUser.sub,
+      'mobile',
+      currentUser.sessionId,
+      dto.organizationId ?? null,
+    );
+
+    return {
+      ...toAuthTokenResponse(result),
+      activeOrganizationId: result.activeOrganizationId ?? null,
+    };
   }
 }

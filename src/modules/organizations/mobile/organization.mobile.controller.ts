@@ -22,7 +22,11 @@ import { MobileOrganizationActivityResponseDto } from 'src/modules/audit/dto/mob
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { AccessTokenGuard } from 'src/modules/auth/shared/guards/access-token.guard';
 import type { AuthJwtPayload } from 'src/modules/auth/shared/interfaces/auth-jwt-payload.interface';
-import { OrgRoles } from '../shared/decorators/org-roles.decorator';
+import { PermissionAction } from 'src/modules/permissions/constants/permission-actions.constant';
+import { OrganizationPermissionResource } from 'src/modules/permissions/constants/permission-resources.constant';
+import { PermissionScope } from 'src/modules/permissions/constants/permission-scope.constant';
+import { RequirePermission } from 'src/modules/permissions/decorators/require-permission.decorator';
+import { PermissionGuard } from 'src/modules/permissions/guards/permission.guard';
 import { BasicSuccessResponseDto } from '../shared/dto/basic-success-response.dto';
 import { OrganizationInviteResponseDto } from '../shared/dto/organization-invite-response.dto';
 import { OrganizationInvitesResponseDto } from '../shared/dto/organization-invites-response.dto';
@@ -31,7 +35,6 @@ import { OrganizationMembershipMeResponseDto } from '../shared/dto/organization-
 import { OrganizationMembersResponseDto } from '../shared/dto/organization-members-response.dto';
 import { OrganizationSummaryDto } from '../shared/dto/organization-summary.dto';
 import { OrganizationTransferOwnershipResponseDto } from '../shared/dto/organization-transfer-ownership-response.dto';
-import { OrganizationRoleGuard } from '../shared/guards/organization-role.guard';
 import { OrganizationMobileService } from './organization.mobile.service';
 import { AcceptOrganizationInviteDto } from './dto/accept-organization-invite.dto';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
@@ -41,7 +44,6 @@ import { OrganizationInviteAcceptResponseDto } from './dto/organization-invite-a
 import { TransferOrganizationOwnershipDto } from './dto/transfer-organization-ownership.dto';
 import { UpdateOrganizationMemberRoleDto } from './dto/update-organization-member-role.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
-import { OrganizationRole } from '@prisma/client';
 
 @Controller('api/mobile/organizations')
 @ApiTags('Mobile Organizations')
@@ -119,13 +121,12 @@ export class MobileOrganizationController {
   }
 
   @Get(':organizationId')
-  @UseGuards(OrganizationRoleGuard)
-  @OrgRoles(
-    OrganizationRole.owner,
-    OrganizationRole.admin,
-    OrganizationRole.member,
-    OrganizationRole.guest,
-  )
+  @UseGuards(PermissionGuard)
+  @RequirePermission({
+    scope: PermissionScope.organization,
+    resource: OrganizationPermissionResource.ORGANIZATION,
+    action: PermissionAction.read,
+  })
   @ApiOperation({
     operationId: 'mobileOrganizationsGetById',
     summary: 'Get Organization',
@@ -146,8 +147,12 @@ export class MobileOrganizationController {
   }
 
   @Patch(':organizationId')
-  @UseGuards(OrganizationRoleGuard)
-  @OrgRoles(OrganizationRole.owner, OrganizationRole.admin)
+  @UseGuards(PermissionGuard)
+  @RequirePermission({
+    scope: PermissionScope.organization,
+    resource: OrganizationPermissionResource.ORGANIZATION,
+    action: PermissionAction.update,
+  })
   @ApiOperation({
     operationId: 'mobileOrganizationsUpdateProfile',
     summary: 'Update Organization Profile',
@@ -175,8 +180,12 @@ export class MobileOrganizationController {
   }
 
   @Post(':organizationId/invites')
-  @UseGuards(OrganizationRoleGuard)
-  @OrgRoles(OrganizationRole.owner, OrganizationRole.admin)
+  @UseGuards(PermissionGuard)
+  @RequirePermission({
+    scope: PermissionScope.organization,
+    resource: OrganizationPermissionResource.INVITES,
+    action: PermissionAction.write,
+  })
   @ApiOperation({
     operationId: 'mobileOrganizationsInviteMember',
     summary: 'Invite Member',
@@ -204,8 +213,12 @@ export class MobileOrganizationController {
   }
 
   @Get(':organizationId/invites')
-  @UseGuards(OrganizationRoleGuard)
-  @OrgRoles(OrganizationRole.owner, OrganizationRole.admin)
+  @UseGuards(PermissionGuard)
+  @RequirePermission({
+    scope: PermissionScope.organization,
+    resource: OrganizationPermissionResource.INVITES,
+    action: PermissionAction.read,
+  })
   @ApiOperation({
     operationId: 'mobileOrganizationsListInvites',
     summary: 'List Invites',
@@ -226,8 +239,12 @@ export class MobileOrganizationController {
   }
 
   @Delete(':organizationId/invites/:inviteId')
-  @UseGuards(OrganizationRoleGuard)
-  @OrgRoles(OrganizationRole.owner, OrganizationRole.admin)
+  @UseGuards(PermissionGuard)
+  @RequirePermission({
+    scope: PermissionScope.organization,
+    resource: OrganizationPermissionResource.INVITES,
+    action: PermissionAction.delete,
+  })
   @ApiOperation({
     operationId: 'mobileOrganizationsRevokeInvite',
     summary: 'Revoke Invite',
@@ -272,13 +289,12 @@ export class MobileOrganizationController {
   }
 
   @Get(':organizationId/members')
-  @UseGuards(OrganizationRoleGuard)
-  @OrgRoles(
-    OrganizationRole.owner,
-    OrganizationRole.admin,
-    OrganizationRole.member,
-    OrganizationRole.guest,
-  )
+  @UseGuards(PermissionGuard)
+  @RequirePermission({
+    scope: PermissionScope.organization,
+    resource: OrganizationPermissionResource.MEMBERS,
+    action: PermissionAction.read,
+  })
   @ApiOperation({
     operationId: 'mobileOrganizationsListMembers',
     summary: 'List Members',
@@ -299,13 +315,12 @@ export class MobileOrganizationController {
   }
 
   @Get(':organizationId/me')
-  @UseGuards(OrganizationRoleGuard)
-  @OrgRoles(
-    OrganizationRole.owner,
-    OrganizationRole.admin,
-    OrganizationRole.member,
-    OrganizationRole.guest,
-  )
+  @UseGuards(PermissionGuard)
+  @RequirePermission({
+    scope: PermissionScope.organization,
+    resource: OrganizationPermissionResource.ORGANIZATION,
+    action: PermissionAction.read,
+  })
   @ApiOperation({
     operationId: 'mobileOrganizationsMe',
     summary: 'Get Organization Me',
@@ -327,13 +342,12 @@ export class MobileOrganizationController {
   }
 
   @Get(':organizationId/activity')
-  @UseGuards(OrganizationRoleGuard)
-  @OrgRoles(
-    OrganizationRole.owner,
-    OrganizationRole.admin,
-    OrganizationRole.member,
-    OrganizationRole.guest,
-  )
+  @UseGuards(PermissionGuard)
+  @RequirePermission({
+    scope: PermissionScope.organization,
+    resource: OrganizationPermissionResource.ACTIVITY,
+    action: PermissionAction.read,
+  })
   @ApiOperation({
     operationId: 'mobileOrganizationsActivity',
     summary: 'Get Organization Activity',
@@ -356,8 +370,12 @@ export class MobileOrganizationController {
   }
 
   @Patch(':organizationId/members/:memberUserId/role')
-  @UseGuards(OrganizationRoleGuard)
-  @OrgRoles(OrganizationRole.owner, OrganizationRole.admin)
+  @UseGuards(PermissionGuard)
+  @RequirePermission({
+    scope: PermissionScope.organization,
+    resource: OrganizationPermissionResource.MEMBERS,
+    action: PermissionAction.update,
+  })
   @ApiOperation({
     operationId: 'mobileOrganizationsUpdateMemberRole',
     summary: 'Update Member Role',
@@ -386,8 +404,12 @@ export class MobileOrganizationController {
   }
 
   @Delete(':organizationId/members/:memberUserId')
-  @UseGuards(OrganizationRoleGuard)
-  @OrgRoles(OrganizationRole.owner, OrganizationRole.admin)
+  @UseGuards(PermissionGuard)
+  @RequirePermission({
+    scope: PermissionScope.organization,
+    resource: OrganizationPermissionResource.MEMBERS,
+    action: PermissionAction.delete,
+  })
   @ApiOperation({
     operationId: 'mobileOrganizationsRemoveMember',
     summary: 'Remove Member',
@@ -410,8 +432,12 @@ export class MobileOrganizationController {
   }
 
   @Post(':organizationId/transfer-ownership')
-  @UseGuards(OrganizationRoleGuard)
-  @OrgRoles(OrganizationRole.owner)
+  @UseGuards(PermissionGuard)
+  @RequirePermission({
+    scope: PermissionScope.organization,
+    resource: OrganizationPermissionResource.MEMBERS,
+    action: PermissionAction.update,
+  })
   @ApiOperation({
     operationId: 'mobileOrganizationsTransferOwnership',
     summary: 'Transfer Ownership',
@@ -439,13 +465,12 @@ export class MobileOrganizationController {
   }
 
   @Post(':organizationId/leave')
-  @UseGuards(OrganizationRoleGuard)
-  @OrgRoles(
-    OrganizationRole.owner,
-    OrganizationRole.admin,
-    OrganizationRole.member,
-    OrganizationRole.guest,
-  )
+  @UseGuards(PermissionGuard)
+  @RequirePermission({
+    scope: PermissionScope.organization,
+    resource: OrganizationPermissionResource.ORGANIZATION,
+    action: PermissionAction.read,
+  })
   @ApiOperation({
     operationId: 'mobileOrganizationsLeave',
     summary: 'Leave Organization',

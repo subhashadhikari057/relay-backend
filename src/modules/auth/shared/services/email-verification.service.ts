@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes } from 'crypto';
+import { parseDurationToMilliseconds } from 'src/common/utils/duration.util';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { EmailDeliveryService } from './email-delivery.service';
 
@@ -139,21 +140,6 @@ export class EmailVerificationService {
     const expiresIn = this.configService.getOrThrow<string>(
       'auth.emailVerificationTokenExpiresIn',
     );
-
-    const matched = expiresIn.match(/^(\d+)([smhd])$/i);
-    if (!matched) {
-      return 20 * 60 * 1000;
-    }
-
-    const value = Number(matched[1]);
-    const unit = matched[2].toLowerCase();
-    const unitMap: Record<string, number> = {
-      s: 1000,
-      m: 60 * 1000,
-      h: 60 * 60 * 1000,
-      d: 24 * 60 * 60 * 1000,
-    };
-
-    return value * (unitMap[unit] ?? unitMap.m);
+    return parseDurationToMilliseconds(expiresIn, 20 * 60 * 1000);
   }
 }

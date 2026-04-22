@@ -1,17 +1,20 @@
 import { BadRequestException } from '@nestjs/common';
 import { UploadService } from './upload.service';
-import { UploadedFileLike } from '../interfaces/uploaded-file.interface';
 
 describe('UploadService', () => {
   const uploadStorageProvider = {
     save: jest.fn(),
+  };
+  const configService = {
+    get: jest.fn().mockReturnValue(false),
   };
 
   let service: UploadService;
 
   beforeEach(() => {
     jest.resetAllMocks();
-    service = new UploadService(uploadStorageProvider);
+    configService.get.mockReturnValue(false);
+    service = new UploadService(configService as never, uploadStorageProvider);
   });
 
   it('uploads single file and returns wrapped response', async () => {
@@ -26,7 +29,11 @@ describe('UploadService', () => {
     });
 
     const result = await service.uploadSingle(
-      { originalname: 'a.jpg' } as UploadedFileLike,
+      {
+        originalname: 'a.jpg',
+        mimetype: 'image/jpeg',
+        buffer: Buffer.from([0xff, 0xd8, 0xff, 0xdb]),
+      },
       true,
       {},
     );
@@ -70,8 +77,16 @@ describe('UploadService', () => {
 
     const result = await service.uploadMultiple(
       [
-        { originalname: 'one.jpg' } as UploadedFileLike,
-        { originalname: 'two.png' } as UploadedFileLike,
+        {
+          originalname: 'one.jpg',
+          mimetype: 'image/jpeg',
+          buffer: Buffer.from([0xff, 0xd8, 0xff, 0xdb]),
+        },
+        {
+          originalname: 'two.png',
+          mimetype: 'image/png',
+          buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+        },
       ],
       false,
       {},

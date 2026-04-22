@@ -16,12 +16,14 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { PlatformRole } from '@prisma/client';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
-import { PlatformRoles } from 'src/modules/auth/shared/decorators/platform-roles.decorator';
 import { AccessTokenGuard } from 'src/modules/auth/shared/guards/access-token.guard';
-import { PlatformRoleGuard } from 'src/modules/auth/shared/guards/platform-role.guard';
 import type { AuthJwtPayload } from 'src/modules/auth/shared/interfaces/auth-jwt-payload.interface';
+import { PermissionAction } from 'src/modules/permissions/constants/permission-actions.constant';
+import { PlatformPermissionResource } from 'src/modules/permissions/constants/permission-resources.constant';
+import { PermissionScope } from 'src/modules/permissions/constants/permission-scope.constant';
+import { RequirePermission } from 'src/modules/permissions/decorators/require-permission.decorator';
+import { PermissionGuard } from 'src/modules/permissions/guards/permission.guard';
 import { BasicSuccessResponseDto } from '../shared/dto/basic-success-response.dto';
 import { OrganizationInvitesResponseDto } from '../shared/dto/organization-invites-response.dto';
 import { OrganizationMembersResponseDto } from '../shared/dto/organization-members-response.dto';
@@ -34,8 +36,7 @@ import { ListAdminOrganizationsDto } from './dto/list-admin-organizations.dto';
 
 @Controller('api/admin/organizations')
 @ApiTags('Admin Organizations')
-@UseGuards(AccessTokenGuard, PlatformRoleGuard)
-@PlatformRoles(PlatformRole.superadmin)
+@UseGuards(AccessTokenGuard, PermissionGuard)
 @ApiBearerAuth('bearer')
 export class AdminOrganizationController {
   constructor(
@@ -43,6 +44,11 @@ export class AdminOrganizationController {
   ) {}
 
   @Get()
+  @RequirePermission({
+    scope: PermissionScope.platform,
+    resource: PlatformPermissionResource.ORGANIZATIONS,
+    action: PermissionAction.read,
+  })
   @ApiOperation({
     operationId: 'adminOrganizationsList',
     summary: 'List Organizations',
@@ -58,6 +64,11 @@ export class AdminOrganizationController {
   }
 
   @Get(':organizationId')
+  @RequirePermission({
+    scope: PermissionScope.platform,
+    resource: PlatformPermissionResource.ORGANIZATIONS,
+    action: PermissionAction.read,
+  })
   @ApiOperation({
     operationId: 'adminOrganizationsGetById',
     summary: 'Get Organization Details',
@@ -77,6 +88,11 @@ export class AdminOrganizationController {
   }
 
   @Patch(':organizationId/status')
+  @RequirePermission({
+    scope: PermissionScope.platform,
+    resource: PlatformPermissionResource.ORGANIZATIONS,
+    action: PermissionAction.update,
+  })
   @ApiOperation({
     operationId: 'adminOrganizationsSetStatus',
     summary: 'Activate/Deactivate Organization',
@@ -103,6 +119,11 @@ export class AdminOrganizationController {
   }
 
   @Patch(':organizationId/delete')
+  @RequirePermission({
+    scope: PermissionScope.platform,
+    resource: PlatformPermissionResource.ORGANIZATIONS,
+    action: PermissionAction.delete,
+  })
   @ApiOperation({
     operationId: 'adminOrganizationsSetDeleted',
     summary: 'Soft Delete/Restore Organization',
@@ -129,6 +150,11 @@ export class AdminOrganizationController {
   }
 
   @Post(':organizationId/invites/:inviteId/revoke')
+  @RequirePermission({
+    scope: PermissionScope.platform,
+    resource: PlatformPermissionResource.ORGANIZATIONS,
+    action: PermissionAction.update,
+  })
   @ApiOperation({
     operationId: 'adminOrganizationsRevokeInvite',
     summary: 'Revoke Organization Invite',
@@ -151,6 +177,11 @@ export class AdminOrganizationController {
   }
 
   @Post(':organizationId/members/:memberUserId/revoke')
+  @RequirePermission({
+    scope: PermissionScope.platform,
+    resource: PlatformPermissionResource.ORGANIZATIONS,
+    action: PermissionAction.update,
+  })
   @ApiOperation({
     operationId: 'adminOrganizationsRevokeMember',
     summary: 'Revoke Organization Member',
@@ -173,6 +204,11 @@ export class AdminOrganizationController {
   }
 
   @Get(':organizationId/invites')
+  @RequirePermission({
+    scope: PermissionScope.platform,
+    resource: PlatformPermissionResource.ORGANIZATIONS,
+    action: PermissionAction.read,
+  })
   @ApiOperation({
     operationId: 'adminOrganizationsListInvites',
     summary: 'List Organization Invites',
@@ -189,6 +225,11 @@ export class AdminOrganizationController {
   }
 
   @Get(':organizationId/members')
+  @RequirePermission({
+    scope: PermissionScope.platform,
+    resource: PlatformPermissionResource.ORGANIZATIONS,
+    action: PermissionAction.read,
+  })
   @ApiOperation({
     operationId: 'adminOrganizationsListMembers',
     summary: 'List Organization Members',
@@ -206,6 +247,11 @@ export class AdminOrganizationController {
   }
 
   @Post(':organizationId/restore')
+  @RequirePermission({
+    scope: PermissionScope.platform,
+    resource: PlatformPermissionResource.ORGANIZATIONS,
+    action: PermissionAction.update,
+  })
   @ApiOperation({
     operationId: 'adminOrganizationsRestore',
     summary: 'Restore Organization',

@@ -14,6 +14,7 @@ function buildUser(overrides?: Partial<User>): User {
     status: null,
     isActive: true,
     platformRole: PlatformRole.user,
+    tokenVersion: 1,
     emailVerifiedAt: null,
     lastLoginAt: null,
     createdAt: now,
@@ -43,7 +44,7 @@ describe('AuthService collision retry', () => {
     const createSessionMock = jest
       .fn()
       .mockRejectedValueOnce(collisionError)
-      .mockResolvedValueOnce({ id: 'session-2' });
+      .mockResolvedValueOnce({ id: 'session-2', activeOrganizationId: null });
 
     const configGetOrThrowMock = jest.fn().mockImplementation((key: string) => {
       if (key === 'auth.maxActiveSessionsPerUser') return 0;
@@ -55,6 +56,10 @@ describe('AuthService collision retry', () => {
         user: {
           findUnique: findUniqueMock,
           update: updateMock,
+        },
+        organizationMember: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          findUnique: jest.fn().mockResolvedValue(null),
         },
       } as never,
       {
@@ -74,6 +79,10 @@ describe('AuthService collision retry', () => {
       { getOrThrow: configGetOrThrowMock } as never,
       { recordSafe: jest.fn() } as never,
       { build: jest.fn() },
+      {
+        getPlatformPermissionMap: jest.fn().mockResolvedValue({}),
+        getOrganizationPermissionMap: jest.fn().mockResolvedValue({}),
+      } as never,
     );
 
     const result = await service.login(
@@ -101,6 +110,7 @@ describe('AuthService collision retry', () => {
       id: 'session-1',
       userId: user.id,
       tokenHash: 'stored-hash',
+      activeOrganizationId: null,
     });
     const isRefreshTokenMatchMock = jest.fn().mockReturnValue(true);
     const rotateSessionRefreshTokenMock = jest
@@ -118,6 +128,9 @@ describe('AuthService collision retry', () => {
       {
         user: {
           findUnique: findUniqueMock,
+        },
+        organizationMember: {
+          findUnique: jest.fn().mockResolvedValue(null),
         },
       } as never,
       {} as never,
@@ -137,6 +150,10 @@ describe('AuthService collision retry', () => {
       { getOrThrow: configGetOrThrowMock } as never,
       { recordSafe: jest.fn() } as never,
       { build: jest.fn() },
+      {
+        getPlatformPermissionMap: jest.fn().mockResolvedValue({}),
+        getOrganizationPermissionMap: jest.fn().mockResolvedValue({}),
+      } as never,
     );
 
     const result = await service.refresh(
@@ -162,7 +179,7 @@ describe('AuthService collision retry', () => {
     const getRefreshTokenMaxAgeMsMock = jest.fn().mockReturnValue(60_000);
     const createSessionMock = jest
       .fn()
-      .mockResolvedValue({ id: 'session-new' });
+      .mockResolvedValue({ id: 'session-new', activeOrganizationId: null });
     const revokeByIdMock = jest.fn().mockResolvedValue(undefined);
     const notifySessionEvictedMock = jest.fn();
     const activeSessions = [
@@ -188,6 +205,10 @@ describe('AuthService collision retry', () => {
           findUnique: findUniqueMock,
           update: updateMock,
         },
+        organizationMember: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          findUnique: jest.fn().mockResolvedValue(null),
+        },
       } as never,
       {
         verifyPassword: verifyPasswordMock,
@@ -207,6 +228,10 @@ describe('AuthService collision retry', () => {
       { getOrThrow: configGetOrThrowMock } as never,
       { recordSafe: jest.fn() } as never,
       { build: jest.fn() },
+      {
+        getPlatformPermissionMap: jest.fn().mockResolvedValue({}),
+        getOrganizationPermissionMap: jest.fn().mockResolvedValue({}),
+      } as never,
     );
 
     const result = await service.login(

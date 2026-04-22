@@ -4,7 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { OrganizationInvite, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { toSkipTake } from 'src/common/utils/pagination.util';
 import { AuditService } from 'src/modules/audit/audit.service';
 import { AuditEventFactory } from 'src/modules/audit/shared/audit-event-factory.service';
@@ -18,6 +18,7 @@ import { AdminOrganizationDeleteDto } from './dto/admin-organization-delete.dto'
 import { AdminOrganizationStatusDto } from './dto/admin-organization-status.dto';
 import { ListAdminOrganizationsDto } from './dto/list-admin-organizations.dto';
 import { OrganizationPolicyService } from '../shared/services/organization-policy.service';
+import { toOrganizationInviteDto } from '../shared/utils/invite-mapper.util';
 
 @Injectable()
 export class OrganizationAdminService {
@@ -235,9 +236,18 @@ export class OrganizationAdminService {
       membership,
     );
 
-    await this.prisma.organizationMember.update({
-      where: { id: membership.id },
-      data: { isActive: false },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.organizationMember.update({
+        where: { id: membership.id },
+        data: { isActive: false },
+      });
+
+      await tx.user.update({
+        where: { id: memberUserId },
+        data: {
+          tokenVersion: { increment: 1 },
+        },
+      });
     });
 
     this.logger.log(
@@ -279,19 +289,7 @@ export class OrganizationAdminService {
 
     return {
       count: invites.length,
-      invites: invites.map((invite) => ({
-        id: invite.id,
-        email: invite.email,
-        role: invite.role,
-        status: this.getInviteStatus(invite),
-        expiresAt: invite.expiresAt,
-        acceptedAt: invite.acceptedAt,
-        revokedAt: invite.revokedAt,
-        createdAt: invite.createdAt,
-        invitedById: invite.invitedBy.id,
-        invitedByName:
-          invite.invitedBy.displayName ?? invite.invitedBy.fullName,
-      })),
+      invites: invites.map((invite) => toOrganizationInviteDto(invite)),
     };
   }
 
@@ -394,14 +392,5 @@ export class OrganizationAdminService {
     }
 
     return organization;
-  }
-
-  private getInviteStatus(
-    invite: Pick<OrganizationInvite, 'acceptedAt' | 'revokedAt' | 'expiresAt'>,
-  ): 'pending' | 'accepted' | 'revoked' | 'expired' {
-    if (invite.acceptedAt) return 'accepted';
-    if (invite.revokedAt) return 'revoked';
-    if (invite.expiresAt <= new Date()) return 'expired';
-    return 'pending';
   }
 }

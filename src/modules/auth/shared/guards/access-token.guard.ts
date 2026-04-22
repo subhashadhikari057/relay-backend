@@ -8,14 +8,19 @@ import { Request } from 'express';
 import { AuthJwtPayload } from '../interfaces/auth-jwt-payload.interface';
 import { SessionService } from '../services/session.service';
 import { TokenService } from '../services/token.service';
+import { TokenVersionService } from '../services/token-version.service';
 
-type AuthenticatedRequest = Request & { user?: AuthJwtPayload };
+type AuthenticatedRequest = Request & {
+  user?: AuthJwtPayload;
+  tokenVersionChecked?: boolean;
+};
 
 @Injectable()
 export class AccessTokenGuard implements CanActivate {
   constructor(
     private readonly tokenService: TokenService,
     private readonly sessionService: SessionService,
+    private readonly tokenVersionService: TokenVersionService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -35,8 +40,14 @@ export class AccessTokenGuard implements CanActivate {
       throw new UnauthorizedException('Session is invalid or expired');
     }
 
+    await this.tokenVersionService.assertTokenVersionOrThrow(
+      payload.sub,
+      payload.tokenVersion,
+    );
+
     await this.sessionService.touchSessionActivity(session.id);
     request.user = payload;
+    request.tokenVersionChecked = true;
     return true;
   }
 

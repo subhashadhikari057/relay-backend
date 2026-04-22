@@ -17,6 +17,10 @@ export enum AuditAction {
   ORGANIZATION_RESTORED = 'organization.restored',
   ORGANIZATION_INVITE_REVOKED_BY_ADMIN = 'organization.invite.revoked.by_admin',
   ORGANIZATION_MEMBER_REVOKED_BY_ADMIN = 'organization.member.revoked.by_admin',
+  PERMISSION_PLATFORM_UPDATED = 'permission.platform.updated',
+  PERMISSION_PLATFORM_BULK_UPDATED = 'permission.platform.bulk_updated',
+  PERMISSION_ORGANIZATION_UPDATED = 'permission.organization.updated',
+  PERMISSION_ORGANIZATION_BULK_UPDATED = 'permission.organization.bulk_updated',
 }
 
 export enum AuditEntityType {
@@ -25,4 +29,5 @@ export enum AuditEntityType {
   ORGANIZATION = 'organization',
   ORGANIZATION_INVITE = 'organization_invite',
   ORGANIZATION_MEMBER = 'organization_member',
+  PERMISSION_POLICY = 'permission_policy',
 }

@@ -14,6 +14,7 @@ import {
   AuditEntityType,
 } from 'src/modules/audit/shared/audit.constants';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { PermissionsPolicyService } from 'src/modules/permissions/services/permissions-policy.service';
 import { LoginMobileDto } from '../../mobile/dto/login-mobile.dto';
 import { SignupMobileDto } from '../../mobile/dto/signup-mobile.dto';
 import { LoginAdminDto } from '../../admin/dto/login-admin.dto';
@@ -44,6 +45,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly auditService: AuditService,
     private readonly auditEventFactory: AuditEventFactory,
+    private readonly permissionsPolicyService: PermissionsPolicyService,
   ) {}
 
   async signupMobile(dto: SignupMobileDto, context: AuthContext) {
@@ -161,12 +163,11 @@ export class AuthService {
       throw new UnauthorizedException('Refresh session is invalid');
     }
 
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      platformRole: user.platformRole,
+    const payload = await this.buildJwtPayload({
+      user,
       sessionId: session.id,
-    };
+      activeOrganizationId: session.activeOrganizationId,
+    });
     const refreshTtl = this.tokenService.getRefreshTokenMaxAgeMs();
     const nextRefreshToken = await this.rotateSessionWithRetry({
       sessionId: session.id,
@@ -209,6 +210,52 @@ export class AuthService {
         metadata: { audience },
       }),
     );
+  }
+
+  async switchActiveOrganization(
+    userId: string,
+    audience: AuthAudience,
+    sessionId: string,
+    organizationId: string | null,
+  ) {
+    if (audience !== 'mobile') {
+      throw new ForbiddenException('Active organization switch is mobile-only');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    this.assertAudienceRole(user, audience);
+
+    const session = await this.sessionService.findActiveSessionById(sessionId);
+    if (!session || session.userId !== userId) {
+      throw new UnauthorizedException('Session is invalid or expired');
+    }
+
+    const resolvedActiveOrganizationId = organizationId
+      ? await this.resolveActiveOrganizationForUser(userId, organizationId)
+      : null;
+
+    await this.sessionService.setActiveOrganizationId(
+      sessionId,
+      resolvedActiveOrganizationId,
+    );
+
+    const accessToken = await this.tokenService.createAccessToken(
+      await this.buildJwtPayload({
+        user,
+        sessionId,
+        activeOrganizationId: resolvedActiveOrganizationId,
+      }),
+    );
+
+    return {
+      accessToken,
+      user: this.toSafeUser(user),
+      activeOrganizationId: resolvedActiveOrganizationId,
+    };
   }
 
   async getMe(userId: string, audience: AuthAudience) {
@@ -306,10 +353,31 @@ export class AuthService {
       (session) => session.id !== currentSessionId,
     );
 
-    const revokedCount = await this.sessionService.revokeAllByUserExceptSession(
-      userId,
-      currentSessionId,
-    );
+    const revokedCount = await this.prisma.$transaction(async (tx) => {
+      const revoked = await tx.session.updateMany({
+        where: {
+          userId,
+          revokedAt: null,
+          id: {
+            not: currentSessionId,
+          },
+        },
+        data: {
+          revokedAt: new Date(),
+        },
+      });
+
+      if (revoked.count > 0) {
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            tokenVersion: { increment: 1 },
+          },
+        });
+      }
+
+      return revoked.count;
+    });
 
     for (const session of revokedTargets) {
       this.sessionNotificationService.notifySessionEvicted({
@@ -345,18 +413,22 @@ export class AuthService {
   private async issueTokensAndSession(user: User, context: AuthContext) {
     await this.enforceSessionLimitBeforeCreate(user.id);
     const refreshTtl = this.tokenService.getRefreshTokenMaxAgeMs();
+    const activeOrganizationId =
+      user.platformRole === PlatformRole.user
+        ? await this.resolveDefaultActiveOrganization(user.id)
+        : null;
     const sessionWithToken = await this.createSessionWithRetry({
       userId: user.id,
+      activeOrganizationId,
       expiresAt: new Date(Date.now() + refreshTtl),
       deviceInfo: context.deviceInfo,
       ipAddress: context.ipAddress,
     });
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      platformRole: user.platformRole,
+    const payload = await this.buildJwtPayload({
+      user,
       sessionId: sessionWithToken.session.id,
-    };
+      activeOrganizationId: sessionWithToken.session.activeOrganizationId,
+    });
     const accessToken = await this.tokenService.createAccessToken(payload);
 
     return {
@@ -396,6 +468,7 @@ export class AuthService {
 
   private async createSessionWithRetry(input: {
     userId: string;
+    activeOrganizationId?: string | null;
     expiresAt: Date;
     deviceInfo?: string;
     ipAddress?: string;
@@ -411,6 +484,7 @@ export class AuthService {
         const session = await this.sessionService.createSession({
           userId: input.userId,
           refreshToken,
+          activeOrganizationId: input.activeOrganizationId ?? null,
           expiresAt: input.expiresAt,
           deviceInfo: input.deviceInfo,
           ipAddress: input.ipAddress,
@@ -486,6 +560,119 @@ export class AuthService {
     }
 
     return typeof target === 'string' && target.includes('token_hash');
+  }
+
+  private async resolveDefaultActiveOrganization(userId: string) {
+    const membership = await this.prisma.organizationMember.findFirst({
+      where: {
+        userId,
+        isActive: true,
+        organization: {
+          isActive: true,
+          deletedAt: null,
+        },
+      },
+      orderBy: [{ joinedAt: 'desc' }],
+      select: {
+        organizationId: true,
+      },
+    });
+
+    return membership?.organizationId ?? null;
+  }
+
+  private async resolveActiveOrganizationForUser(
+    userId: string,
+    organizationId: string,
+  ) {
+    const membership = await this.prisma.organizationMember.findUnique({
+      where: {
+        organizationId_userId: {
+          organizationId,
+          userId,
+        },
+      },
+      include: {
+        organization: {
+          select: {
+            isActive: true,
+            deletedAt: true,
+          },
+        },
+      },
+    });
+
+    if (!membership || !membership.isActive) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    if (
+      !membership.organization.isActive ||
+      membership.organization.deletedAt
+    ) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    return organizationId;
+  }
+
+  private async buildJwtPayload(input: {
+    user: User;
+    sessionId: string;
+    activeOrganizationId?: string | null;
+  }) {
+    const platformPermissions =
+      await this.permissionsPolicyService.getPlatformPermissionMap(
+        input.user.platformRole,
+      );
+
+    let organizationPermissions: Record<string, number> | undefined;
+    let activeOrganizationId: string | undefined;
+
+    if (input.activeOrganizationId) {
+      const membership = await this.prisma.organizationMember.findUnique({
+        where: {
+          organizationId_userId: {
+            organizationId: input.activeOrganizationId,
+            userId: input.user.id,
+          },
+        },
+        include: {
+          organization: {
+            select: {
+              isActive: true,
+              deletedAt: true,
+            },
+          },
+        },
+      });
+
+      if (
+        membership &&
+        membership.isActive &&
+        membership.organization.isActive &&
+        !membership.organization.deletedAt
+      ) {
+        organizationPermissions =
+          await this.permissionsPolicyService.getOrganizationPermissionMap(
+            input.activeOrganizationId,
+            membership.role,
+          );
+        activeOrganizationId = input.activeOrganizationId;
+      }
+    }
+
+    return {
+      sub: input.user.id,
+      email: input.user.email,
+      platformRole: input.user.platformRole,
+      sessionId: input.sessionId,
+      platformPermissions,
+      activeOrganizationId,
+      organizationPermissions,
+      permissionsVersion: Date.now(),
+      tokenVersion: input.user.tokenVersion,
+    };
   }
 
   private assertAudienceRole(user: User, audience: AuthAudience) {

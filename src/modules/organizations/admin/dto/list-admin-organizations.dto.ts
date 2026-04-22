@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsInt,
@@ -10,6 +10,16 @@ import {
 } from 'class-validator';
 
 export class ListAdminOrganizationsDto {
+  private static toBoolean(value: unknown) {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === 'true') return true;
+      if (normalized === 'false') return false;
+    }
+    return value;
+  }
+
   @ApiPropertyOptional({
     description: 'Search term (name or slug).',
     example: 'relay',
@@ -23,7 +33,7 @@ export class ListAdminOrganizationsDto {
     example: true,
   })
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => ListAdminOrganizationsDto.toBoolean(value))
   @IsBoolean()
   isActive?: boolean;
 
@@ -32,7 +42,7 @@ export class ListAdminOrganizationsDto {
     example: false,
   })
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => ListAdminOrganizationsDto.toBoolean(value))
   @IsBoolean()
   deleted?: boolean;
 

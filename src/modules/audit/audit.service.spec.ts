@@ -2,11 +2,11 @@ import { AuditService } from './audit.service';
 import { AuditAction, AuditEntityType } from './shared/audit.constants';
 
 describe('AuditService', () => {
-  const executeRawUnsafe = jest.fn();
+  const createAuditLog = jest.fn();
   const queryRawUnsafe = jest.fn();
 
   const prisma = {
-    $executeRawUnsafe: executeRawUnsafe,
+    auditLog: { create: createAuditLog },
     $queryRawUnsafe: queryRawUnsafe,
   };
 
@@ -18,7 +18,9 @@ describe('AuditService', () => {
   });
 
   it('stores an audit event via record()', async () => {
-    executeRawUnsafe.mockResolvedValueOnce(1);
+    createAuditLog.mockResolvedValueOnce({
+      id: 'audit-1',
+    });
 
     await service.record({
       action: AuditAction.AUTH_LOGIN_SUCCEEDED,
@@ -27,7 +29,7 @@ describe('AuditService', () => {
       actorUserId: 'user-1',
     });
 
-    expect(executeRawUnsafe).toHaveBeenCalledTimes(1);
+    expect(createAuditLog).toHaveBeenCalledTimes(1);
   });
 
   it('maps admin filters in listAdminAudit()', async () => {
@@ -53,7 +55,7 @@ describe('AuditService', () => {
   });
 
   it('recordSafe does not throw on write failure', async () => {
-    executeRawUnsafe.mockRejectedValueOnce(new Error('db failure'));
+    createAuditLog.mockRejectedValueOnce(new Error('db failure'));
 
     await expect(
       service.recordSafe({

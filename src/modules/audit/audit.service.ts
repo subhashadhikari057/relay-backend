@@ -1,4 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { randomUUID } from 'crypto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AdminAuditQueryDto } from './dto/admin-audit-query.dto';
 import { MobileMyAuditQueryDto } from './dto/mobile-my-audit-query.dto';
@@ -44,29 +46,28 @@ export class AuditService {
   constructor(private readonly prisma: PrismaService) {}
 
   async record(input: RecordAuditInput) {
-    const metadataJson = JSON.stringify(input.metadata ?? null);
-    await this.prisma.$executeRawUnsafe(
-      `INSERT INTO "audit_logs"
-      ("organization_id","actor_user_id","action","entity_type","entity_id","metadata")
-      VALUES ($1,$2,$3,$4,$5,$6::jsonb)`,
-      input.organizationId ?? null,
-      input.actorUserId ?? null,
-      input.action,
-      input.entityType,
-      input.entityId,
-      metadataJson,
-    );
+    await this.prisma.auditLog.create({
+      data: {
+        id: randomUUID(),
+        organizationId: input.organizationId ?? null,
+        actorUserId: input.actorUserId ?? null,
+        action: input.action,
+        entityType: input.entityType,
+        entityId: input.entityId,
+        metadata: input.metadata as Prisma.InputJsonValue | undefined,
+      },
+    });
   }
 
   async recordSafe(input: RecordAuditInput) {
     try {
       await this.record(input);
     } catch (error) {
-      this.logger.warn(
+      this.logger.error(
         `Failed to record audit event action=${input.action} entityType=${input.entityType} entityId=${input.entityId}`,
       );
       if (error instanceof Error) {
-        this.logger.debug(error.message);
+        this.logger.error(error.message);
       }
     }
   }

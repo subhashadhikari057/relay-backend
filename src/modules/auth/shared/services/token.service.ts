@@ -2,6 +2,10 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { randomBytes } from 'crypto';
+import {
+  parseDurationToMilliseconds,
+  parseDurationToSeconds,
+} from 'src/common/utils/duration.util';
 import { AuthJwtPayload } from '../interfaces/auth-jwt-payload.interface';
 
 @Injectable()
@@ -17,8 +21,9 @@ export class TokenService {
     return this.jwtService.signAsync(payload, {
       privateKey,
       algorithm: 'RS256',
-      expiresIn: this.parseDurationToSeconds(
+      expiresIn: parseDurationToSeconds(
         this.configService.getOrThrow<string>('jwt.accessExpiresIn'),
+        60 * 60,
       ),
     });
   }
@@ -42,42 +47,7 @@ export class TokenService {
     const expiresIn = this.configService.getOrThrow<string>(
       'jwt.refreshExpiresIn',
     );
-
-    const matched = expiresIn.match(/^(\d+)([smhd])$/i);
-    if (!matched) {
-      return 7 * 24 * 60 * 60 * 1000;
-    }
-
-    const value = Number(matched[1]);
-    const unit = matched[2].toLowerCase();
-
-    const unitMap: Record<string, number> = {
-      s: 1000,
-      m: 60 * 1000,
-      h: 60 * 60 * 1000,
-      d: 24 * 60 * 60 * 1000,
-    };
-
-    return value * (unitMap[unit] ?? unitMap.d);
-  }
-
-  private parseDurationToSeconds(duration: string) {
-    const matched = duration.match(/^(\d+)([smhd])$/i);
-    if (!matched) {
-      return 60 * 60;
-    }
-
-    const value = Number(matched[1]);
-    const unit = matched[2].toLowerCase();
-
-    const unitMap: Record<string, number> = {
-      s: 1,
-      m: 60,
-      h: 60 * 60,
-      d: 24 * 60 * 60,
-    };
-
-    return value * (unitMap[unit] ?? unitMap.h);
+    return parseDurationToMilliseconds(expiresIn, 7 * 24 * 60 * 60 * 1000);
   }
 
   private getPrivateKey() {

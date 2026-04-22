@@ -5,4 +5,9 @@ export interface AuthJwtPayload {
   email: string;
   platformRole: PlatformRole;
   sessionId: string;
+  platformPermissions: Record<string, number>;
+  activeOrganizationId?: string;
+  organizationPermissions?: Record<string, number>;
+  permissionsVersion?: number;
+  tokenVersion: number;
 }

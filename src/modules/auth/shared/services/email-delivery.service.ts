@@ -9,8 +9,28 @@ export class EmailDeliveryService {
     fullName: string;
     verificationUrl: string;
   }) {
+    const maskedEmail = this.maskEmail(input.email);
+    const urlHost = this.getUrlHost(input.verificationUrl);
     this.logger.log(
-      `Email verification link for ${input.email} (${input.fullName}): ${input.verificationUrl}`,
+      `Email verification queued for ${maskedEmail} (${input.fullName}) via ${urlHost}`,
     );
+  }
+
+  private maskEmail(email: string) {
+    const [local, domain] = email.split('@');
+    if (!local || !domain) {
+      return 'hidden';
+    }
+
+    const prefix = local.slice(0, 2);
+    return `${prefix}***@${domain}`;
+  }
+
+  private getUrlHost(url: string) {
+    try {
+      return new URL(url).host;
+    } catch {
+      return 'unknown-host';
+    }
   }
 }

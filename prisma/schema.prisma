@@ -23,6 +23,20 @@ enum OrganizationRole {
   guest
 }
 
+enum PermissionPolicyScope {
+  platform
+  organization
+}
+
+enum PermissionPolicyRole {
+  superadmin
+  user
+  owner
+  admin
+  member
+  guest
+}
+
 model User {
   id            String                   @id @default(uuid()) @db.Uuid
   email         String                   @unique @db.Citext
@@ -33,6 +47,7 @@ model User {
   status        String?                  @db.VarChar(100)
   isActive      Boolean                  @default(true) @map("is_active")
   platformRole  PlatformRole             @default(user) @map("platform_role")
+  tokenVersion  Int                      @default(1) @map("token_version")
   emailVerifiedAt DateTime?              @map("email_verified_at") @db.Timestamptz(6)
   lastLoginAt   DateTime?                @map("last_login_at") @db.Timestamptz(6)
   createdAt     DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -53,6 +68,7 @@ model Session {
   id           String    @id @default(uuid()) @db.Uuid
   userId       String    @map("user_id") @db.Uuid
   tokenHash    String    @unique @map("token_hash")
+  activeOrganizationId String? @map("active_organization_id") @db.Uuid
   expiresAt    DateTime  @map("expires_at") @db.Timestamptz(6)
   revokedAt    DateTime? @map("revoked_at") @db.Timestamptz(6)
   deviceInfo   String?   @map("device_info")
@@ -99,6 +115,7 @@ model Organization {
   members   OrganizationMember[]
   invites   OrganizationInvite[]
   auditLogs AuditLog[]
+  permissionPolicies PermissionPolicy[]
 
   @@index([createdById])
   @@index([isActive])
@@ -166,4 +183,23 @@ model OrganizationInvite {
   @@index([email])
   @@index([expiresAt])
   @@map("organization_invites")
+}
+
+model PermissionPolicy {
+  id             String               @id @default(uuid()) @db.Uuid
+  scope          PermissionPolicyScope
+  organizationId String?              @map("organization_id") @db.Uuid
+  role           PermissionPolicyRole
+  resource       String               @db.VarChar(120)
+  mask           Int
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([scope, role, resource])
+  @@index([scope, organizationId, role, resource])
+  @@unique([scope, organizationId, role, resource])
+  @@index([organizationId])
+  @@map("permission_policies")
 }

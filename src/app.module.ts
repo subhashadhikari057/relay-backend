@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import configuration from './config/configuration';
+import { envSchema } from './config/env.schema';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuditModule } from './modules/audit/audit.module';
@@ -16,6 +17,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { HealthModule } from './modules/health/health.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { UploadModule } from './modules/upload/upload.module';
+import { PermissionsModule } from './modules/permissions/permissions.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -23,6 +25,7 @@ import { PrismaModule } from './prisma/prisma.module';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configuration],
+      validate: (env) => envSchema.parse(env),
     }),
     PrismaModule,
     AuditModule,
@@ -38,6 +41,7 @@ import { PrismaModule } from './prisma/prisma.module';
     HealthModule,
     OrganizationsModule,
     UploadModule,
+    PermissionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

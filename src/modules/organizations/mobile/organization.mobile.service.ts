@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { OrganizationInvite, OrganizationRole, Prisma } from '@prisma/client';
+import { OrganizationRole, Prisma } from '@prisma/client';
 import { createHash, randomBytes } from 'crypto';
 import { toSkipTake } from 'src/common/utils/pagination.util';
 import { AuditService } from 'src/modules/audit/audit.service';
@@ -17,7 +17,9 @@ import {
 } from 'src/modules/audit/shared/audit.constants';
 import type { AuthJwtPayload } from 'src/modules/auth/shared/interfaces/auth-jwt-payload.interface';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { PermissionsPolicyService } from 'src/modules/permissions/services/permissions-policy.service';
 import { OrganizationPolicyService } from '../shared/services/organization-policy.service';
+import { toOrganizationInviteDto } from '../shared/utils/invite-mapper.util';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { InviteOrganizationMemberDto } from './dto/invite-organization-member.dto';
 import { ListMyOrganizationsDto } from './dto/list-my-organizations.dto';
@@ -30,6 +32,7 @@ export class OrganizationMobileService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly organizationPolicyService: OrganizationPolicyService,
+    private readonly permissionsPolicyService: PermissionsPolicyService,
     private readonly auditService: AuditService,
     private readonly auditEventFactory: AuditEventFactory,
   ) {}
@@ -61,6 +64,10 @@ export class OrganizationMobileService {
 
       return created;
     });
+
+    await this.permissionsPolicyService.initializeOrganizationPolicies(
+      organization.id,
+    );
 
     await this.auditService.recordSafe(
       this.auditEventFactory.build({
@@ -376,19 +383,7 @@ export class OrganizationMobileService {
 
     return {
       count: invites.length,
-      invites: invites.map((invite) => ({
-        id: invite.id,
-        email: invite.email,
-        role: invite.role,
-        status: this.getInviteStatus(invite),
-        expiresAt: invite.expiresAt,
-        acceptedAt: invite.acceptedAt,
-        revokedAt: invite.revokedAt,
-        createdAt: invite.createdAt,
-        invitedById: invite.invitedBy.id,
-        invitedByName:
-          invite.invitedBy.displayName ?? invite.invitedBy.fullName,
-      })),
+      invites: invites.map((invite) => toOrganizationInviteDto(invite)),
     };
   }
 
@@ -667,11 +662,22 @@ export class OrganizationMobileService {
       );
     }
 
-    const updated = await this.prisma.organizationMember.update({
-      where: { id: targetMembership.id },
-      data: {
-        role: dto.role,
-      },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const nextMembership = await tx.organizationMember.update({
+        where: { id: targetMembership.id },
+        data: {
+          role: dto.role,
+        },
+      });
+
+      await tx.user.update({
+        where: { id: targetUserId },
+        data: {
+          tokenVersion: { increment: 1 },
+        },
+      });
+
+      return nextMembership;
     });
 
     await this.auditService.recordSafe(
@@ -717,9 +723,18 @@ export class OrganizationMobileService {
       targetMembership,
     );
 
-    await this.prisma.organizationMember.update({
-      where: { id: targetMembership.id },
-      data: { isActive: false },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.organizationMember.update({
+        where: { id: targetMembership.id },
+        data: { isActive: false },
+      });
+
+      await tx.user.update({
+        where: { id: targetUserId },
+        data: {
+          tokenVersion: { increment: 1 },
+        },
+      });
     });
 
     await this.auditService.recordSafe(
@@ -780,6 +795,17 @@ export class OrganizationMobileService {
         where: { id: targetMembership.id },
         data: { role: OrganizationRole.owner },
       });
+
+      await tx.user.updateMany({
+        where: {
+          id: {
+            in: [userId, dto.newOwnerUserId],
+          },
+        },
+        data: {
+          tokenVersion: { increment: 1 },
+        },
+      });
     });
 
     await this.auditService.recordSafe(
@@ -811,11 +837,20 @@ export class OrganizationMobileService {
       membership,
     );
 
-    await this.prisma.organizationMember.update({
-      where: { id: membership.id },
-      data: {
-        isActive: false,
-      },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.organizationMember.update({
+        where: { id: membership.id },
+        data: {
+          isActive: false,
+        },
+      });
+
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          tokenVersion: { increment: 1 },
+        },
+      });
     });
 
     await this.auditService.recordSafe(
@@ -892,14 +927,5 @@ export class OrganizationMobileService {
 
   private hashToken(value: string) {
     return createHash('sha256').update(value).digest('hex');
-  }
-
-  private getInviteStatus(
-    invite: Pick<OrganizationInvite, 'acceptedAt' | 'revokedAt' | 'expiresAt'>,
-  ): 'pending' | 'accepted' | 'revoked' | 'expired' {
-    if (invite.acceptedAt) return 'accepted';
-    if (invite.revokedAt) return 'revoked';
-    if (invite.expiresAt <= new Date()) return 'expired';
-    return 'pending';
   }
 }

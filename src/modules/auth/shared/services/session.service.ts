@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 type CreateSessionInput = {
   userId: string;
   refreshToken: string;
+  activeOrganizationId?: string | null;
   expiresAt: Date;
   deviceInfo?: string;
   ipAddress?: string;
@@ -12,7 +14,10 @@ type CreateSessionInput = {
 
 @Injectable()
 export class SessionService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {}
 
   async createSession(input: CreateSessionInput) {
     const tokenHash = this.hashToken(input.refreshToken);
@@ -21,6 +26,7 @@ export class SessionService {
       data: {
         userId: input.userId,
         tokenHash,
+        activeOrganizationId: input.activeOrganizationId ?? null,
         expiresAt: input.expiresAt,
         deviceInfo: input.deviceInfo,
         ipAddress: input.ipAddress,
@@ -142,13 +148,39 @@ export class SessionService {
   }
 
   async touchSessionActivity(sessionId: string) {
+    const touchIntervalSeconds = this.configService.get<number>(
+      'auth.sessionTouchIntervalSeconds',
+      300,
+    );
+    const thresholdTime = new Date(
+      Date.now() - Math.max(touchIntervalSeconds, 1) * 1000,
+    );
+
+    await this.prisma.session.updateMany({
+      where: {
+        id: sessionId,
+        revokedAt: null,
+        lastActiveAt: {
+          lt: thresholdTime,
+        },
+      },
+      data: {
+        lastActiveAt: new Date(),
+      },
+    });
+  }
+
+  async setActiveOrganizationId(
+    sessionId: string,
+    activeOrganizationId: string | null,
+  ) {
     await this.prisma.session.updateMany({
       where: {
         id: sessionId,
         revokedAt: null,
       },
       data: {
-        lastActiveAt: new Date(),
+        activeOrganizationId,
       },
     });
   }

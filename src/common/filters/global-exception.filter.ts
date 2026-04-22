@@ -66,10 +66,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       const statusCode = exception.getStatus();
       const httpResponse = exception.getResponse();
       const message = this.extractHttpExceptionMessage(httpResponse);
+      const code = this.extractHttpExceptionCode(httpResponse);
 
       return {
         statusCode,
-        code: this.httpStatusToErrorCode(statusCode),
+        code: code ?? this.httpStatusToErrorCode(statusCode),
         message,
         details: this.extractHttpExceptionDetails(statusCode, httpResponse),
       };
@@ -143,6 +144,17 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     return 'Request failed';
+  }
+
+  private extractHttpExceptionCode(response: unknown) {
+    if (typeof response === 'object' && response !== null) {
+      const code = (response as { code?: unknown }).code;
+      if (typeof code === 'string' && code.trim()) {
+        return code;
+      }
+    }
+
+    return null;
   }
 
   private extractHttpExceptionDetails(statusCode: number, response: unknown) {

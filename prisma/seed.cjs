@@ -1,6 +1,12 @@
 /* eslint-disable no-console */
 const { PrismaPg } = require('@prisma/adapter-pg');
-const { PrismaClient, OrganizationRole, PlatformRole } = require('@prisma/client');
+const {
+  PrismaClient,
+  OrganizationRole,
+  PermissionPolicyRole,
+  PermissionPolicyScope,
+  PlatformRole,
+} = require('@prisma/client');
 const argon2 = require('argon2');
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -27,6 +33,7 @@ async function main() {
       displayName: 'Superadmin',
       platformRole: PlatformRole.superadmin,
       isActive: true,
+      tokenVersion: 1,
     },
     create: {
       email: superadminEmail,
@@ -35,6 +42,7 @@ async function main() {
       displayName: 'Superadmin',
       platformRole: PlatformRole.superadmin,
       isActive: true,
+      tokenVersion: 1,
     },
   });
 
@@ -52,6 +60,7 @@ async function main() {
       displayName: 'User',
       platformRole: PlatformRole.user,
       isActive: true,
+      tokenVersion: 1,
     },
     create: {
       email: userEmail,
@@ -60,6 +69,7 @@ async function main() {
       displayName: 'User',
       platformRole: PlatformRole.user,
       isActive: true,
+      tokenVersion: 1,
     },
   });
 
@@ -102,11 +112,102 @@ async function main() {
     },
   });
 
+  const upsertPolicy = async ({ scope, organizationId = null, role, resource, mask }) => {
+    const existing = await prisma.permissionPolicy.findFirst({
+      where: {
+        scope,
+        organizationId,
+        role,
+        resource,
+      },
+    });
+
+    if (existing) {
+      await prisma.permissionPolicy.update({
+        where: { id: existing.id },
+        data: { mask },
+      });
+      return;
+    }
+
+    await prisma.permissionPolicy.create({
+      data: {
+        scope,
+        organizationId,
+        role,
+        resource,
+        mask,
+      },
+    });
+  };
+
+  const ALL = 15;
+  const READ = 1;
+  const WRITE = 2;
+  const UPDATE = 4;
+  const DELETE = 8;
+
+  const platformPolicies = [
+    [PermissionPolicyRole.superadmin, 'platform.auth', ALL],
+    [PermissionPolicyRole.superadmin, 'platform.organizations', ALL],
+    [PermissionPolicyRole.superadmin, 'platform.audit', ALL],
+    [PermissionPolicyRole.superadmin, 'platform.upload', ALL],
+    [PermissionPolicyRole.superadmin, 'platform.permissions', ALL],
+    [PermissionPolicyRole.user, 'platform.auth', 0],
+    [PermissionPolicyRole.user, 'platform.organizations', 0],
+    [PermissionPolicyRole.user, 'platform.audit', 0],
+    [PermissionPolicyRole.user, 'platform.upload', 0],
+    [PermissionPolicyRole.user, 'platform.permissions', 0],
+  ];
+
+  for (const [role, resource, mask] of platformPolicies) {
+    await upsertPolicy({
+      scope: PermissionPolicyScope.platform,
+      role,
+      resource,
+      mask,
+    });
+  }
+
+  const orgPolicies = [
+    [PermissionPolicyRole.owner, 'org.organization', ALL],
+    [PermissionPolicyRole.owner, 'org.invite', ALL],
+    [PermissionPolicyRole.owner, 'org.member', ALL],
+    [PermissionPolicyRole.owner, 'org.activity', READ],
+    [PermissionPolicyRole.owner, 'org.permissions', ALL],
+    [PermissionPolicyRole.admin, 'org.organization', READ | UPDATE],
+    [PermissionPolicyRole.admin, 'org.invite', READ | WRITE | DELETE],
+    [PermissionPolicyRole.admin, 'org.member', READ | UPDATE | DELETE],
+    [PermissionPolicyRole.admin, 'org.activity', READ],
+    [PermissionPolicyRole.admin, 'org.permissions', 0],
+    [PermissionPolicyRole.member, 'org.organization', READ],
+    [PermissionPolicyRole.member, 'org.invite', 0],
+    [PermissionPolicyRole.member, 'org.member', READ],
+    [PermissionPolicyRole.member, 'org.activity', READ],
+    [PermissionPolicyRole.member, 'org.permissions', 0],
+    [PermissionPolicyRole.guest, 'org.organization', READ],
+    [PermissionPolicyRole.guest, 'org.invite', 0],
+    [PermissionPolicyRole.guest, 'org.member', READ],
+    [PermissionPolicyRole.guest, 'org.activity', READ],
+    [PermissionPolicyRole.guest, 'org.permissions', 0],
+  ];
+
+  for (const [role, resource, mask] of orgPolicies) {
+    await upsertPolicy({
+      scope: PermissionPolicyScope.organization,
+      organizationId: organization.id,
+      role,
+      resource,
+      mask,
+    });
+  }
+
   console.log(`Seeded superadmin user: ${superadmin.email}`);
   console.log(`Seeded user: ${user.email}`);
   console.log(
     `Seeded organization: ${organization.name} (slug=${organization.slug})`,
   );
+  console.log('Seeded baseline permission policies for platform and seeded organization.');
 }
 
 main()

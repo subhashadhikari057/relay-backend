@@ -9,7 +9,6 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { PlatformRole } from '@prisma/client';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -23,14 +22,20 @@ import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { AuthTokenResponseDto } from '../shared/dto/auth-token-response.dto';
 import { AuthUserResponseDto } from '../shared/dto/auth-user-response.dto';
 import { LogoutResponseDto } from '../shared/dto/logout-response.dto';
-import { PlatformRoles } from '../shared/decorators/platform-roles.decorator';
 import { AccessTokenGuard } from '../shared/guards/access-token.guard';
-import { PlatformRoleGuard } from '../shared/guards/platform-role.guard';
 import type { AuthJwtPayload } from '../shared/interfaces/auth-jwt-payload.interface';
 import { AuthCookieService } from '../shared/services/auth-cookie.service';
 import { AuthService } from '../shared/services/auth.service';
-import { toAuthTokenResponse } from '../shared/utils/auth-response.util';
-import { revokeSessionFromCookieIfPresent } from '../shared/utils/auth-session.util';
+import {
+  loginAndSetAuthCookies,
+  logoutAndClearAuthCookies,
+  refreshAndSetAuthCookies,
+} from '../shared/utils/auth-controller.util';
+import { PermissionAction } from 'src/modules/permissions/constants/permission-actions.constant';
+import { PlatformPermissionResource } from 'src/modules/permissions/constants/permission-resources.constant';
+import { PermissionScope } from 'src/modules/permissions/constants/permission-scope.constant';
+import { RequirePermission } from 'src/modules/permissions/decorators/require-permission.decorator';
+import { PermissionGuard } from 'src/modules/permissions/guards/permission.guard';
 import { LoginAdminDto } from './dto/login-admin.dto';
 
 @Controller('api/admin/auth')
@@ -59,17 +64,14 @@ export class AdminAuthController {
     @Ip() ipAddress: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.authService.login(dto, 'admin', {
-      deviceInfo: userAgent,
-      ipAddress,
-    });
-
-    this.authCookieService.setAuthCookies(
+    return loginAndSetAuthCookies(
+      this.authService,
+      this.authCookieService,
+      'admin',
+      dto,
+      { userAgent, ipAddress },
       response,
-      result.refreshToken,
-      result.sessionId,
     );
-    return toAuthTokenResponse(result);
   }
 
   @Post('refresh')
@@ -91,25 +93,14 @@ export class AdminAuthController {
     @Ip() ipAddress: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const { refreshToken, sessionId } =
-      this.authCookieService.getRefreshCookiePairOrThrow(request.cookies);
-
-    const result = await this.authService.refresh(
-      sessionId,
-      refreshToken,
+    return refreshAndSetAuthCookies(
+      this.authService,
+      this.authCookieService,
       'admin',
-      {
-        deviceInfo: userAgent,
-        ipAddress,
-      },
-    );
-
-    this.authCookieService.setAuthCookies(
+      request,
+      { userAgent, ipAddress },
       response,
-      result.refreshToken,
-      result.sessionId,
     );
-    return toAuthTokenResponse(result);
   }
 
   @Post('logout')
@@ -128,21 +119,22 @@ export class AdminAuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    await revokeSessionFromCookieIfPresent(
-      request,
-      'admin',
+    return logoutAndClearAuthCookies(
       this.authService,
       this.authCookieService,
+      'admin',
+      request,
+      response,
     );
-
-    this.authCookieService.clearAuthCookies(response);
-
-    return { success: true };
   }
 
   @Get('me')
-  @UseGuards(AccessTokenGuard, PlatformRoleGuard)
-  @PlatformRoles(PlatformRole.superadmin)
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @RequirePermission({
+    scope: PermissionScope.platform,
+    resource: PlatformPermissionResource.AUTH,
+    action: PermissionAction.read,
+  })
   @ApiBearerAuth('bearer')
   @ApiOperation({
     operationId: 'adminAuthMe',

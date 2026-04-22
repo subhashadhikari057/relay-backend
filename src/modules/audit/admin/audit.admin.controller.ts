@@ -12,23 +12,29 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { PlatformRole } from '@prisma/client';
-import { PlatformRoles } from 'src/modules/auth/shared/decorators/platform-roles.decorator';
 import { AccessTokenGuard } from 'src/modules/auth/shared/guards/access-token.guard';
-import { PlatformRoleGuard } from 'src/modules/auth/shared/guards/platform-role.guard';
+import { PermissionAction } from 'src/modules/permissions/constants/permission-actions.constant';
+import { PlatformPermissionResource } from 'src/modules/permissions/constants/permission-resources.constant';
+import { PermissionScope } from 'src/modules/permissions/constants/permission-scope.constant';
+import { RequirePermission } from 'src/modules/permissions/decorators/require-permission.decorator';
+import { PermissionGuard } from 'src/modules/permissions/guards/permission.guard';
 import { AdminAuditQueryDto } from '../dto/admin-audit-query.dto';
 import { AdminAuditResponseDto } from '../dto/admin-audit-response.dto';
 import { AuditService } from '../audit.service';
 
 @Controller('api/admin/audit')
 @ApiTags('Admin Audit')
-@UseGuards(AccessTokenGuard, PlatformRoleGuard)
-@PlatformRoles(PlatformRole.superadmin)
+@UseGuards(AccessTokenGuard, PermissionGuard)
 @ApiBearerAuth('bearer')
 export class AuditAdminController {
   constructor(private readonly auditService: AuditService) {}
 
   @Get()
+  @RequirePermission({
+    scope: PermissionScope.platform,
+    resource: PlatformPermissionResource.AUDIT,
+    action: PermissionAction.read,
+  })
   @ApiOperation({
     operationId: 'adminAuditListGlobal',
     summary: 'List Global Audit Events',
@@ -44,6 +50,11 @@ export class AuditAdminController {
   }
 
   @Get('organizations/:organizationId')
+  @RequirePermission({
+    scope: PermissionScope.platform,
+    resource: PlatformPermissionResource.AUDIT,
+    action: PermissionAction.read,
+  })
   @ApiOperation({
     operationId: 'adminAuditListOrganization',
     summary: 'List Organization Audit Events',
