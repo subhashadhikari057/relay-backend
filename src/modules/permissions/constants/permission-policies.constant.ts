@@ -116,6 +116,18 @@ export const DEFAULT_PERMISSION_POLICIES: PermissionPolicyDefinition[] = [
   },
   {
     scope: PermissionScope.workspace,
+    role: PermissionPolicyRole.owner,
+    resource: WorkspacePermissionResource.CHANNELS,
+    mask: ALL_PERMISSION_BITS,
+  },
+  {
+    scope: PermissionScope.workspace,
+    role: PermissionPolicyRole.owner,
+    resource: WorkspacePermissionResource.CHANNEL_MEMBERS,
+    mask: ALL_PERMISSION_BITS,
+  },
+  {
+    scope: PermissionScope.workspace,
     role: PermissionPolicyRole.admin,
     resource: WorkspacePermissionResource.WORKSPACE,
     mask:
@@ -154,6 +166,20 @@ export const DEFAULT_PERMISSION_POLICIES: PermissionPolicyDefinition[] = [
   },
   {
     scope: PermissionScope.workspace,
+    role: PermissionPolicyRole.admin,
+    resource: WorkspacePermissionResource.CHANNELS,
+    mask:
+      PermissionBits[PermissionAction.read] |
+      PermissionBits[PermissionAction.write],
+  },
+  {
+    scope: PermissionScope.workspace,
+    role: PermissionPolicyRole.admin,
+    resource: WorkspacePermissionResource.CHANNEL_MEMBERS,
+    mask: ALL_PERMISSION_BITS,
+  },
+  {
+    scope: PermissionScope.workspace,
     role: PermissionPolicyRole.member,
     resource: WorkspacePermissionResource.WORKSPACE,
     mask: PermissionBits[PermissionAction.read],
@@ -184,6 +210,20 @@ export const DEFAULT_PERMISSION_POLICIES: PermissionPolicyDefinition[] = [
   },
   {
     scope: PermissionScope.workspace,
+    role: PermissionPolicyRole.member,
+    resource: WorkspacePermissionResource.CHANNELS,
+    mask:
+      PermissionBits[PermissionAction.read] |
+      PermissionBits[PermissionAction.write],
+  },
+  {
+    scope: PermissionScope.workspace,
+    role: PermissionPolicyRole.member,
+    resource: WorkspacePermissionResource.CHANNEL_MEMBERS,
+    mask: PermissionBits[PermissionAction.read],
+  },
+  {
+    scope: PermissionScope.workspace,
     role: PermissionPolicyRole.guest,
     resource: WorkspacePermissionResource.WORKSPACE,
     mask: PermissionBits[PermissionAction.read],
@@ -211,6 +251,18 @@ export const DEFAULT_PERMISSION_POLICIES: PermissionPolicyDefinition[] = [
     role: PermissionPolicyRole.guest,
     resource: WorkspacePermissionResource.PERMISSIONS,
     mask: noAccess,
+  },
+  {
+    scope: PermissionScope.workspace,
+    role: PermissionPolicyRole.guest,
+    resource: WorkspacePermissionResource.CHANNELS,
+    mask: PermissionBits[PermissionAction.read],
+  },
+  {
+    scope: PermissionScope.workspace,
+    role: PermissionPolicyRole.guest,
+    resource: WorkspacePermissionResource.CHANNEL_MEMBERS,
+    mask: PermissionBits[PermissionAction.read],
   },
 ];
 
@@ -220,6 +272,8 @@ export const WORKSPACE_PERMISSION_RESOURCES = [
   WorkspacePermissionResource.MEMBERS,
   WorkspacePermissionResource.ACTIVITY,
   WorkspacePermissionResource.PERMISSIONS,
+  WorkspacePermissionResource.CHANNELS,
+  WorkspacePermissionResource.CHANNEL_MEMBERS,
 ] as const;
 
 export const PLATFORM_PERMISSION_RESOURCES = [

@@ -12,4 +12,6 @@ export enum WorkspacePermissionResource {
   MEMBERS = 'workspace.member',
   ACTIVITY = 'workspace.activity',
   PERMISSIONS = 'workspace.permissions',
+  CHANNELS = 'workspace.channel',
+  CHANNEL_MEMBERS = 'workspace.channel_member',
 }

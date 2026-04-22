@@ -23,6 +23,16 @@ enum WorkspaceRole {
   guest
 }
 
+enum ChannelType {
+  public
+  private
+}
+
+enum ChannelMemberRole {
+  admin
+  member
+}
+
 enum PermissionPolicyScope {
   platform
   workspace
@@ -55,6 +65,9 @@ model User {
 
   sessions                Session[]
   emailVerificationTokens EmailVerificationToken[]
+  channelsCreated         Channel[]          @relation("channel_created_by")
+  channelMemberships      ChannelMember[]
+  channelReads            UserChannelRead[]
   workspacesCreated    Workspace[]      @relation("workspace_created_by")
   workspaceMemberships WorkspaceMember[] @relation("workspace_member_user")
   workspaceInvitesSent WorkspaceInvite[] @relation("workspace_invited_by")
@@ -114,6 +127,7 @@ model Workspace {
   createdBy User                 @relation("workspace_created_by", fields: [createdById], references: [id], onDelete: Restrict)
   members   WorkspaceMember[]
   invites   WorkspaceInvite[]
+  channels  Channel[]
   auditLogs AuditLog[]
   permissionPolicies PermissionPolicy[]
 
@@ -202,4 +216,58 @@ model PermissionPolicy {
   @@unique([scope, workspaceId, role, resource])
   @@index([workspaceId])
   @@map("permission_policies")
+}
+
+model Channel {
+  id          String      @id @default(uuid()) @db.Uuid
+  workspaceId String      @map("workspace_id") @db.Uuid
+  createdById String      @map("created_by_id") @db.Uuid
+  name        String      @db.Citext
+  topic       String?     @db.VarChar(250)
+  description String?     @db.VarChar(500)
+  type        ChannelType @default(public)
+  isArchived  Boolean     @default(false) @map("is_archived")
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User              @relation("channel_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  members   ChannelMember[]
+  reads     UserChannelRead[]
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId, isArchived, type])
+  @@index([workspaceId, createdAt])
+  @@index([createdById])
+  @@map("channels")
+}
+
+model ChannelMember {
+  channelId String            @map("channel_id") @db.Uuid
+  userId    String            @map("user_id") @db.Uuid
+  role      ChannelMemberRole @default(member)
+  joinedAt  DateTime          @default(now()) @map("joined_at") @db.Timestamptz(6)
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([channelId, userId])
+  @@index([userId])
+  @@index([channelId, joinedAt])
+  @@map("channel_members")
+}
+
+model UserChannelRead {
+  userId            String    @map("user_id") @db.Uuid
+  channelId         String    @map("channel_id") @db.Uuid
+  lastReadMessageId String?   @map("last_read_message_id") @db.Uuid
+  lastReadAt        DateTime? @map("last_read_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@id([userId, channelId])
+  @@index([channelId])
+  @@map("user_channel_reads")
 }

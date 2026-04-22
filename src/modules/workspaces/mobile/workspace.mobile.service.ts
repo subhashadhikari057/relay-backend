@@ -5,7 +5,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { WorkspaceRole, Prisma } from '@prisma/client';
+import {
+  ChannelMemberRole,
+  ChannelType,
+  WorkspaceRole,
+  Prisma,
+} from '@prisma/client';
 import { createHash, randomBytes } from 'crypto';
 import { toSkipTake } from 'src/common/utils/pagination.util';
 import { AuditService } from 'src/modules/audit/audit.service';
@@ -59,6 +64,39 @@ export class WorkspaceMobileService {
           userId,
           role: WorkspaceRole.owner,
           isActive: true,
+        },
+      });
+
+      const generalChannel = await tx.channel.upsert({
+        where: {
+          workspaceId_name: {
+            workspaceId: created.id,
+            name: 'general',
+          },
+        },
+        update: {},
+        create: {
+          workspaceId: created.id,
+          createdById: userId,
+          name: 'general',
+          type: ChannelType.public,
+        },
+      });
+
+      await tx.channelMember.upsert({
+        where: {
+          channelId_userId: {
+            channelId: generalChannel.id,
+            userId,
+          },
+        },
+        update: {
+          role: ChannelMemberRole.admin,
+        },
+        create: {
+          channelId: generalChannel.id,
+          userId,
+          role: ChannelMemberRole.admin,
         },
       });
 

@@ -16,5 +16,6 @@ import { WorkspacePolicyService } from './shared/services/workspace-policy.servi
     WorkspacePolicyService,
     WorkspaceRoleGuard,
   ],
+  exports: [WorkspacePolicyService],
 })
 export class WorkspacesModule {}
