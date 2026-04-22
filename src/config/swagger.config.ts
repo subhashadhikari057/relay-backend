@@ -3,6 +3,30 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { apiReference } from '@scalar/nestjs-api-reference';
 import { Request, Response } from 'express';
 
+const adminDocsCustomCss = `
+.light-mode {
+  --scalar-color-accent: #ff6b2c;
+  --scalar-background-1: #141821;
+  --scalar-background-2: #1d2430;
+  --scalar-background-3: #2a3445;
+}
+.dark-mode {
+  --scalar-color-accent: #ff8a4c;
+}
+`;
+
+const mobileDocsCustomCss = `
+.light-mode {
+  --scalar-color-accent: #0e9f6e;
+  --scalar-background-1: #f8fffb;
+  --scalar-background-2: #edf9f3;
+  --scalar-background-3: #dff2e8;
+}
+.dark-mode {
+  --scalar-color-accent: #23c58a;
+}
+`;
+
 function filterDocumentByPrefix(
   document: ReturnType<typeof SwaggerModule.createDocument>,
   prefix: string,
@@ -71,9 +95,11 @@ export function setupApiDocs(app: INestApplication) {
     '/api/api-docs',
     apiReference({
       pageTitle: 'Relay Admin API Docs',
+      theme: 'bluePlanet',
       operationTitleSource: 'summary',
       showOperationId: true,
       hideModels: true,
+      customCss: adminDocsCustomCss,
       content: adminOpenApiDocument,
     }),
   );
@@ -82,9 +108,11 @@ export function setupApiDocs(app: INestApplication) {
     '/api/mobile-docs',
     apiReference({
       pageTitle: 'Relay Mobile API Docs',
+      theme: 'deepSpace',
       operationTitleSource: 'summary',
       showOperationId: true,
       hideModels: true,
+      customCss: mobileDocsCustomCss,
       content: mobileOpenApiDocument,
     }),
   );
