@@ -1,6 +1,15 @@
 export default () => ({
   nodeEnv: process.env.NODE_ENV ?? 'development',
   port: parseInt(process.env.PORT ?? '3000', 10),
+  frontend: {
+    origins: (
+      process.env.FRONTEND_ORIGINS ??
+      'http://localhost:8080,http://127.0.0.1:8080'
+    )
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  },
   database: {
     url: process.env.DATABASE_URL,
   },

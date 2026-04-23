@@ -699,6 +699,7 @@ export class AuthService {
       fullName: user.fullName,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
+      avatarColor: user.avatarColor,
       status: user.status,
       isActive: user.isActive,
       emailVerifiedAt: user.emailVerifiedAt,

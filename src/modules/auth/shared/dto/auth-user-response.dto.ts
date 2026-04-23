@@ -33,6 +33,12 @@ export class AuthUserResponseDto {
   avatarUrl!: string | null;
 
   @ApiPropertyOptional({
+    description: 'Optional avatar color token or hex value.',
+    example: '#4F46E5',
+  })
+  avatarColor!: string | null;
+
+  @ApiPropertyOptional({
     description: 'Optional user status text.',
     example: 'Available',
   })

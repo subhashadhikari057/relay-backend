@@ -11,6 +11,7 @@ function buildUser(overrides?: Partial<User>): User {
     fullName: 'Relay User',
     displayName: 'relay-user',
     avatarUrl: null,
+    avatarColor: null,
     status: null,
     isActive: true,
     platformRole: PlatformRole.user,

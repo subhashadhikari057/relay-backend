@@ -6,5 +6,6 @@ export type WorkspaceRequestContext = {
   slug: string;
   description: string | null;
   avatarUrl: string | null;
+  avatarColor: string | null;
   role: WorkspaceRole;
 };

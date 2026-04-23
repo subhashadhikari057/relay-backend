@@ -32,6 +32,12 @@ export class WorkspaceSummaryDto {
   })
   avatarUrl!: string | null;
 
+  @ApiPropertyOptional({
+    description: 'Optional workspace avatar color token or hex value.',
+    example: '#4F46E5',
+  })
+  avatarColor!: string | null;
+
   @ApiProperty({
     description: 'Membership role of current user in this workspace.',
     enum: WorkspaceRole,

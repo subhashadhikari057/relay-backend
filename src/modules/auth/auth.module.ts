@@ -44,6 +44,7 @@ import { PlatformRoleGuard } from './shared/guards/platform-role.guard';
     PlatformRoleGuard,
   ],
   exports: [
+    AuthService,
     AccessTokenGuard,
     PlatformRoleGuard,
     TokenService,

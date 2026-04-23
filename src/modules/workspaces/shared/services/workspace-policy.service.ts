@@ -15,6 +15,7 @@ type MembershipWithWorkspace = WorkspaceMember & {
     slug: string;
     description: string | null;
     avatarUrl: string | null;
+    avatarColor: string | null;
     isActive: boolean;
     deletedAt: Date | null;
   };
@@ -40,6 +41,7 @@ export class WorkspacePolicyService {
             slug: true,
             description: true,
             avatarUrl: true,
+            avatarColor: true,
             isActive: true,
             deletedAt: true,
           },
@@ -67,6 +69,7 @@ export class WorkspacePolicyService {
       slug: membership.workspace.slug,
       description: membership.workspace.description,
       avatarUrl: membership.workspace.avatarUrl,
+      avatarColor: membership.workspace.avatarColor,
       role: membership.role,
     };
   }

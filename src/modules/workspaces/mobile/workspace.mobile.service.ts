@@ -56,6 +56,7 @@ export class WorkspaceMobileService {
           slug,
           description: dto.description?.trim(),
           avatarUrl: dto.avatarUrl?.trim(),
+          avatarColor: dto.avatarColor?.trim(),
           createdById: userId,
           isActive: true,
         },
@@ -132,6 +133,7 @@ export class WorkspaceMobileService {
       slug: workspace.slug,
       description: workspace.description,
       avatarUrl: workspace.avatarUrl,
+      avatarColor: workspace.avatarColor,
       role: WorkspaceRole.owner,
     };
   }
@@ -156,6 +158,7 @@ export class WorkspaceMobileService {
             slug: true,
             description: true,
             avatarUrl: true,
+            avatarColor: true,
           },
         },
       },
@@ -174,6 +177,7 @@ export class WorkspaceMobileService {
         slug: membership.workspace.slug,
         description: membership.workspace.description,
         avatarUrl: membership.workspace.avatarUrl,
+        avatarColor: membership.workspace.avatarColor,
         role: membership.role,
       })),
     };
@@ -199,6 +203,7 @@ export class WorkspaceMobileService {
       slug: membership.workspace.slug,
       description: membership.workspace.description,
       avatarUrl: membership.workspace.avatarUrl,
+      avatarColor: membership.workspace.avatarColor,
       role: membership.role,
       membersCount: activeMembersCount,
     };
@@ -223,6 +228,7 @@ export class WorkspaceMobileService {
             slug: true,
             description: true,
             avatarUrl: true,
+            avatarColor: true,
           },
         },
       },
@@ -245,6 +251,7 @@ export class WorkspaceMobileService {
       slug: membership.workspace.slug,
       description: membership.workspace.description,
       avatarUrl: membership.workspace.avatarUrl,
+      avatarColor: membership.workspace.avatarColor,
       role: membership.role,
       membersCount: activeMembersCount,
     };
@@ -276,6 +283,9 @@ export class WorkspaceMobileService {
     if (dto.avatarUrl !== undefined) {
       data.avatarUrl = dto.avatarUrl.trim();
     }
+    if (dto.avatarColor !== undefined) {
+      data.avatarColor = dto.avatarColor.trim();
+    }
 
     const updated = await this.prisma.workspace.update({
       where: { id: workspaceId },
@@ -298,6 +308,7 @@ export class WorkspaceMobileService {
       slug: updated.slug,
       description: updated.description,
       avatarUrl: updated.avatarUrl,
+      avatarColor: updated.avatarColor,
       role: membership.role,
     };
   }

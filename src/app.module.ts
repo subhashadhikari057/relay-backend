@@ -18,6 +18,7 @@ import { HealthModule } from './modules/health/health.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
 import { SystemMessagesModule } from './modules/system-messages/system-messages.module';
+import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -42,6 +43,7 @@ import { PrismaModule } from './prisma/prisma.module';
     UploadModule,
     PermissionsModule,
     SystemMessagesModule,
+    OnboardingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

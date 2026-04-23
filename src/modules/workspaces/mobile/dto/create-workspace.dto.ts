@@ -30,4 +30,14 @@ export class CreateWorkspaceDto {
   @IsOptional()
   @IsString()
   avatarUrl?: string;
+
+  @ApiPropertyOptional({
+    description: 'Optional avatar color token or hex value.',
+    example: '#4F46E5',
+    maxLength: 20,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  avatarColor?: string;
 }
