@@ -5,17 +5,17 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { SearchMessagesQueryDto } from '../dto/search-messages-query.dto';
-import { MessageAccessService } from './message-access.service';
-import { MessageEngagementService } from './message-engagement.service';
-import { MessagePresenterService } from './message-presenter.service';
-import { MessageValidationService } from './message-validation.service';
+import { MessageEngagementService } from 'src/modules/messages/mobile/services/message-engagement.service';
+import { MessagePresenterService } from 'src/modules/messages/mobile/services/message-presenter.service';
+import { MessageValidationService } from 'src/modules/messages/mobile/services/message-validation.service';
+import { SearchDirectMessagesQueryDto } from '../dto/search-direct-messages-query.dto';
+import { DmAccessService } from './dm-access.service';
 
 @Injectable()
-export class MessageSearchService {
+export class DmSearchService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly messageAccessService: MessageAccessService,
+    private readonly dmAccessService: DmAccessService,
     private readonly messageValidationService: MessageValidationService,
     private readonly messagePresenterService: MessagePresenterService,
     private readonly messageEngagementService: MessageEngagementService,
@@ -24,9 +24,9 @@ export class MessageSearchService {
   async searchMessages(
     userId: string,
     workspaceId: string,
-    query: SearchMessagesQueryDto,
+    query: SearchDirectMessagesQueryDto,
   ) {
-    const workspaceMembership = await this.prisma.workspaceMember.findFirst({
+    const membership = await this.prisma.workspaceMember.findFirst({
       where: {
         workspaceId,
         userId,
@@ -35,16 +35,15 @@ export class MessageSearchService {
       select: { workspaceId: true },
     });
 
-    if (!workspaceMembership) {
+    if (!membership) {
       throw new NotFoundException('Workspace membership not found');
     }
 
-    if (query.channelId) {
-      await this.messageAccessService.resolveChannelAccess(
+    if (query.directConversationId) {
+      await this.dmAccessService.resolveConversationAccess(
         userId,
         workspaceId,
-        query.channelId,
-        { forRead: true },
+        query.directConversationId,
       );
     }
 
@@ -62,25 +61,21 @@ export class MessageSearchService {
 
     const where: Prisma.MessageWhereInput = {
       workspaceId,
-      directConversationId: null,
+      channelId: null,
+      directConversationId: query.directConversationId,
       deletedAt: null,
       content: {
         contains: normalizedQuery,
         mode: 'insensitive',
       },
-      ...(query.channelId
-        ? {
-            channelId: query.channelId,
-            channel: {
-              isArchived: false,
-            },
-          }
-        : {
-            channel: {
-              isArchived: false,
-              OR: [{ type: 'public' }, { members: { some: { userId } } }],
-            },
-          }),
+      directConversation: {
+        members: {
+          some: {
+            userId,
+            leftAt: null,
+          },
+        },
+      },
       ...(cursor
         ? {
             OR: [
@@ -100,10 +95,10 @@ export class MessageSearchService {
       take: limit + 1,
       include: {
         ...this.messagePresenterService.messageInclude(),
-        channel: {
+        directConversation: {
           select: {
             id: true,
-            name: true,
+            title: true,
             type: true,
           },
         },
@@ -132,8 +127,7 @@ export class MessageSearchService {
           userId,
           metaMap.get(message.id),
         ),
-        channelName: message.channel?.name ?? 'unknown',
-        channelType: message.channel?.type ?? 'public',
+        conversationTitle: message.directConversation?.title ?? null,
         matchPreview: this.buildMatchPreview(message.content, normalizedQuery),
       })),
     };

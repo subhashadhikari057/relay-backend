@@ -144,16 +144,39 @@ export class MessageEngagementService {
     return pinnedMessages.map((item) => item.messageId);
   }
 
+  async getPinnedMessagesForDirectConversation(input: {
+    workspaceId: string;
+    directConversationId: string;
+  }) {
+    const pinnedMessages = await this.client.messagePin.findMany({
+      where: {
+        message: {
+          workspaceId: input.workspaceId,
+          directConversationId: input.directConversationId,
+        },
+      },
+      orderBy: [{ createdAt: 'desc' }, { messageId: 'desc' }],
+      select: {
+        messageId: true,
+      },
+    });
+
+    return pinnedMessages.map((item) => item.messageId);
+  }
+
   async assertMessageExistsForToggle(input: {
     messageId: string;
     workspaceId: string;
-    channelId: string;
+    channelId?: string;
+    directConversationId?: string;
   }) {
     const message = await this.prisma.message.findFirst({
       where: {
         id: input.messageId,
         workspaceId: input.workspaceId,
-        channelId: input.channelId,
+        ...(input.channelId
+          ? { channelId: input.channelId }
+          : { directConversationId: input.directConversationId }),
       },
       select: {
         id: true,

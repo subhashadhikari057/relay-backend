@@ -10,4 +10,8 @@ export enum SystemMessageEvent {
   CHANNEL_LEFT = 'channel.left',
   CHANNEL_MEMBER_ADDED = 'channel.member.added',
   CHANNEL_MEMBER_REMOVED = 'channel.member.removed',
+  DM_CREATED = 'dm.created',
+  DM_MEMBER_ADDED = 'dm.member.added',
+  DM_MEMBER_REMOVED = 'dm.member.removed',
+  DM_MEMBER_LEFT = 'dm.member.left',
 }

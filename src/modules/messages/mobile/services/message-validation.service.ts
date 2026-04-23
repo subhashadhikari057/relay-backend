@@ -145,6 +145,74 @@ export class MessageValidationService {
     }
   }
 
+  async validateDmMentionMetadata(input: {
+    metadata?: Record<string, unknown>;
+    workspaceId: string;
+    directConversationId: string;
+  }) {
+    const mentionsValue = input.metadata?.mentions;
+    if (mentionsValue === undefined) {
+      return;
+    }
+
+    if (!Array.isArray(mentionsValue)) {
+      throw new BadRequestException(
+        'metadata.mentions must be an array of user ids',
+      );
+    }
+
+    const mentionIds = Array.from(
+      new Set(
+        mentionsValue.map((value) => {
+          if (typeof value !== 'string' || !this.isUuid(value)) {
+            throw new BadRequestException(
+              'metadata.mentions must contain valid UUID user ids',
+            );
+          }
+          return value;
+        }),
+      ),
+    );
+
+    if (mentionIds.length === 0) {
+      return;
+    }
+
+    const activeWorkspaceMembers = await this.prisma.workspaceMember.findMany({
+      where: {
+        workspaceId: input.workspaceId,
+        isActive: true,
+        userId: { in: mentionIds },
+      },
+      select: { userId: true },
+    });
+
+    const workspaceMemberIds = new Set(
+      activeWorkspaceMembers.map((item) => item.userId),
+    );
+    if (mentionIds.some((id) => !workspaceMemberIds.has(id))) {
+      throw new BadRequestException(
+        'All mentioned users must be active members of this workspace',
+      );
+    }
+
+    const dmMembers = await this.prisma.directConversationMember.findMany({
+      where: {
+        directConversationId: input.directConversationId,
+        leftAt: null,
+        userId: { in: mentionIds },
+      },
+      select: { userId: true },
+    });
+
+    const dmMemberIds = new Set(dmMembers.map((item) => item.userId));
+    if (mentionIds.some((id) => !dmMemberIds.has(id))) {
+      throw new BadRequestException(
+        'All mentioned users must be active members of this DM conversation',
+      );
+    }
+  }
+
   normalizeLimit(limit?: number) {
     const value = limit ?? DEFAULT_LIMIT;
     if (value < 1) {

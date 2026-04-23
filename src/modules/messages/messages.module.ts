@@ -38,5 +38,10 @@ import { MessageValidationService } from './mobile/services/message-validation.s
     MessageReadStateService,
     MessageSearchService,
   ],
+  exports: [
+    MessageValidationService,
+    MessagePresenterService,
+    MessageEngagementService,
+  ],
 })
 export class MessagesModule {}

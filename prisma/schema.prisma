@@ -33,6 +33,11 @@ enum ChannelMemberRole {
   member
 }
 
+enum DirectConversationType {
+  one_to_one
+  group
+}
+
 enum MessageType {
   text
   file
@@ -74,6 +79,9 @@ model User {
   channelsCreated         Channel[]          @relation("channel_created_by")
   channelMemberships      ChannelMember[]
   channelReads            UserChannelRead[]
+  directConversationsCreated DirectConversation[] @relation("direct_conversation_created_by")
+  directConversationMemberships DirectConversationMember[]
+  dmReads                UserDmRead[]
   messages               Message[]          @relation("message_sender")
   messageReactions       MessageReaction[]
   pinnedMessages         MessagePin[]       @relation("message_pinned_by")
@@ -137,6 +145,7 @@ model Workspace {
   members   WorkspaceMember[]
   invites   WorkspaceInvite[]
   channels  Channel[]
+  directConversations DirectConversation[]
   messages  Message[]
   auditLogs AuditLog[]
   permissionPolicies PermissionPolicy[]
@@ -283,10 +292,66 @@ model UserChannelRead {
   @@map("user_channel_reads")
 }
 
+model DirectConversation {
+  id          String                 @id @default(uuid()) @db.Uuid
+  workspaceId String                 @map("workspace_id") @db.Uuid
+  createdById String                 @map("created_by_id") @db.Uuid
+  type        DirectConversationType @default(one_to_one)
+  oneToOneKey String?                @map("one_to_one_key") @db.VarChar(160)
+  title       String?                @db.VarChar(160)
+  lastMessageAt DateTime?            @map("last_message_at") @db.Timestamptz(6)
+  createdAt   DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace Workspace                 @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User                      @relation("direct_conversation_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  members   DirectConversationMember[]
+  reads     UserDmRead[]
+  messages  Message[]
+
+  @@index([workspaceId, updatedAt])
+  @@index([workspaceId, lastMessageAt])
+  @@index([createdById])
+  @@unique([workspaceId, oneToOneKey])
+  @@map("direct_conversations")
+}
+
+model DirectConversationMember {
+  directConversationId String    @map("direct_conversation_id") @db.Uuid
+  userId               String    @map("user_id") @db.Uuid
+  joinedAt             DateTime  @default(now()) @map("joined_at") @db.Timestamptz(6)
+  leftAt               DateTime? @map("left_at") @db.Timestamptz(6)
+
+  directConversation DirectConversation @relation(fields: [directConversationId], references: [id], onDelete: Cascade)
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([directConversationId, userId])
+  @@index([userId, joinedAt])
+  @@index([directConversationId, joinedAt])
+  @@index([leftAt])
+  @@map("direct_conversation_members")
+}
+
+model UserDmRead {
+  userId               String    @map("user_id") @db.Uuid
+  directConversationId String    @map("direct_conversation_id") @db.Uuid
+  lastReadMessageId    String?   @map("last_read_message_id") @db.Uuid
+  lastReadAt           DateTime? @map("last_read_at") @db.Timestamptz(6)
+  updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  directConversation DirectConversation @relation(fields: [directConversationId], references: [id], onDelete: Cascade)
+
+  @@id([userId, directConversationId])
+  @@index([directConversationId])
+  @@map("user_dm_reads")
+}
+
 model Message {
   id               String      @id @default(uuid()) @db.Uuid
   workspaceId      String      @map("workspace_id") @db.Uuid
-  channelId        String      @map("channel_id") @db.Uuid
+  channelId        String?     @map("channel_id") @db.Uuid
+  directConversationId String? @map("direct_conversation_id") @db.Uuid
   senderUserId     String      @map("sender_user_id") @db.Uuid
   type             MessageType @default(text)
   content          String?
@@ -298,7 +363,8 @@ model Message {
   updatedAt        DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   workspace       Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  channel         Channel              @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  channel         Channel?             @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  directConversation DirectConversation? @relation(fields: [directConversationId], references: [id], onDelete: Cascade)
   sender          User                 @relation("message_sender", fields: [senderUserId], references: [id], onDelete: Restrict)
   parentMessage   Message?             @relation("message_thread", fields: [parentMessageId], references: [id], onDelete: SetNull)
   threadReplies   Message[]            @relation("message_thread")
@@ -307,11 +373,14 @@ model Message {
   pin             MessagePin?
 
   @@index([channelId, createdAt, id])
+  @@index([directConversationId, createdAt, id])
   @@index([parentMessageId, createdAt, id])
   @@index([senderUserId, createdAt])
   @@index([workspaceId, channelId, deletedAt])
+  @@index([workspaceId, directConversationId, deletedAt])
   @@index([workspaceId, deletedAt, createdAt, id])
   @@index([channelId, deletedAt, createdAt, id])
+  @@index([directConversationId, deletedAt, createdAt, id])
   @@map("messages")
 }
 

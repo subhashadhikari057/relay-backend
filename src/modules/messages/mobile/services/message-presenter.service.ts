@@ -60,6 +60,7 @@ export class MessagePresenterService {
       id: message.id,
       workspaceId: message.workspaceId,
       channelId: message.channelId,
+      directConversationId: message.directConversationId,
       senderUserId: message.senderUserId,
       type: message.type,
       content: message.deletedAt ? null : message.content,

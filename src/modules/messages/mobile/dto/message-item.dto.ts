@@ -20,11 +20,20 @@ export class MessageItemDto {
   workspaceId!: string;
 
   @ApiProperty({
-    description: 'Channel id.',
+    description: 'Channel id when message belongs to a channel.',
     format: 'uuid',
+    nullable: true,
     example: '50fa42be-2f56-42cf-9f6c-1472936e14d2',
   })
-  channelId!: string;
+  channelId!: string | null;
+
+  @ApiProperty({
+    description: 'Direct conversation id when message belongs to a DM.',
+    format: 'uuid',
+    nullable: true,
+    example: '2a6d8e88-7698-4cf7-a0f5-6dc8d4571e71',
+  })
+  directConversationId!: string | null;
 
   @ApiProperty({
     description: 'Message author user id.',
