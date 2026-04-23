@@ -6,7 +6,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 type CreateSessionInput = {
   userId: string;
   refreshToken: string;
-  activeOrganizationId?: string | null;
+  activeWorkspaceId?: string | null;
   expiresAt: Date;
   deviceInfo?: string;
   ipAddress?: string;
@@ -26,7 +26,7 @@ export class SessionService {
       data: {
         userId: input.userId,
         tokenHash,
-        activeOrganizationId: input.activeOrganizationId ?? null,
+        activeWorkspaceId: input.activeWorkspaceId ?? null,
         expiresAt: input.expiresAt,
         deviceInfo: input.deviceInfo,
         ipAddress: input.ipAddress,
@@ -170,9 +170,9 @@ export class SessionService {
     });
   }
 
-  async setActiveOrganizationId(
+  async setActiveWorkspaceId(
     sessionId: string,
-    activeOrganizationId: string | null,
+    activeWorkspaceId: string | null,
   ) {
     await this.prisma.session.updateMany({
       where: {
@@ -180,7 +180,7 @@ export class SessionService {
         revokedAt: null,
       },
       data: {
-        activeOrganizationId,
+        activeWorkspaceId,
       },
     });
   }

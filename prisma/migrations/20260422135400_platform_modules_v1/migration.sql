@@ -1,14 +1,14 @@
 -- CreateEnum
-CREATE TYPE "OrganizationRole" AS ENUM ('owner', 'admin', 'member', 'guest');
+CREATE TYPE "WorkspaceRole" AS ENUM ('owner', 'admin', 'member', 'guest');
 
 -- CreateEnum
-CREATE TYPE "PermissionPolicyScope" AS ENUM ('platform', 'organization');
+CREATE TYPE "PermissionPolicyScope" AS ENUM ('platform', 'workspace');
 
 -- CreateEnum
 CREATE TYPE "PermissionPolicyRole" AS ENUM ('superadmin', 'user', 'owner', 'admin', 'member', 'guest');
 
 -- CreateTable
-CREATE TABLE "organizations" (
+CREATE TABLE "workspaces" (
     "id" UUID NOT NULL,
     "name" VARCHAR(120) NOT NULL,
     "slug" VARCHAR(80) NOT NULL,
@@ -20,13 +20,13 @@ CREATE TABLE "organizations" (
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
 
-    CONSTRAINT "organizations_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "workspaces_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "audit_logs" (
     "id" UUID NOT NULL,
-    "organization_id" UUID,
+    "workspace_id" UUID,
     "actor_user_id" UUID,
     "action" VARCHAR(120) NOT NULL,
     "entity_type" VARCHAR(80) NOT NULL,
@@ -38,24 +38,24 @@ CREATE TABLE "audit_logs" (
 );
 
 -- CreateTable
-CREATE TABLE "organization_members" (
+CREATE TABLE "workspace_members" (
     "id" UUID NOT NULL,
-    "organization_id" UUID NOT NULL,
+    "workspace_id" UUID NOT NULL,
     "user_id" UUID NOT NULL,
-    "role" "OrganizationRole" NOT NULL DEFAULT 'member',
+    "role" "WorkspaceRole" NOT NULL DEFAULT 'member',
     "joined_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "invited_by_id" UUID,
     "is_active" BOOLEAN NOT NULL DEFAULT true,
 
-    CONSTRAINT "organization_members_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "workspace_members_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "organization_invites" (
+CREATE TABLE "workspace_invites" (
     "id" UUID NOT NULL,
-    "organization_id" UUID NOT NULL,
+    "workspace_id" UUID NOT NULL,
     "email" CITEXT NOT NULL,
-    "role" "OrganizationRole" NOT NULL DEFAULT 'member',
+    "role" "WorkspaceRole" NOT NULL DEFAULT 'member',
     "token_hash" TEXT NOT NULL,
     "invited_by_id" UUID NOT NULL,
     "expires_at" TIMESTAMPTZ(6) NOT NULL,
@@ -63,14 +63,14 @@ CREATE TABLE "organization_invites" (
     "revoked_at" TIMESTAMPTZ(6),
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "organization_invites_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "workspace_invites_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "permission_policies" (
     "id" UUID NOT NULL,
     "scope" "PermissionPolicyScope" NOT NULL,
-    "organization_id" UUID,
+    "workspace_id" UUID,
     "role" "PermissionPolicyRole" NOT NULL,
     "resource" VARCHAR(120) NOT NULL,
     "mask" INTEGER NOT NULL,
@@ -81,19 +81,19 @@ CREATE TABLE "permission_policies" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "organizations_slug_key" ON "organizations"("slug");
+CREATE UNIQUE INDEX "workspaces_slug_key" ON "workspaces"("slug");
 
 -- CreateIndex
-CREATE INDEX "organizations_created_by_id_idx" ON "organizations"("created_by_id");
+CREATE INDEX "workspaces_created_by_id_idx" ON "workspaces"("created_by_id");
 
 -- CreateIndex
-CREATE INDEX "organizations_is_active_idx" ON "organizations"("is_active");
+CREATE INDEX "workspaces_is_active_idx" ON "workspaces"("is_active");
 
 -- CreateIndex
-CREATE INDEX "organizations_deleted_at_idx" ON "organizations"("deleted_at");
+CREATE INDEX "workspaces_deleted_at_idx" ON "workspaces"("deleted_at");
 
 -- CreateIndex
-CREATE INDEX "audit_logs_organization_id_created_at_idx" ON "audit_logs"("organization_id", "created_at");
+CREATE INDEX "audit_logs_workspace_id_created_at_idx" ON "audit_logs"("workspace_id", "created_at");
 
 -- CreateIndex
 CREATE INDEX "audit_logs_action_created_at_idx" ON "audit_logs"("action", "created_at");
@@ -105,72 +105,72 @@ CREATE INDEX "audit_logs_actor_user_id_created_at_idx" ON "audit_logs"("actor_us
 CREATE INDEX "audit_logs_entity_type_entity_id_idx" ON "audit_logs"("entity_type", "entity_id");
 
 -- CreateIndex
-CREATE INDEX "organization_members_user_id_idx" ON "organization_members"("user_id");
+CREATE INDEX "workspace_members_user_id_idx" ON "workspace_members"("user_id");
 
 -- CreateIndex
-CREATE INDEX "organization_members_organization_id_role_idx" ON "organization_members"("organization_id", "role");
+CREATE INDEX "workspace_members_workspace_id_role_idx" ON "workspace_members"("workspace_id", "role");
 
 -- CreateIndex
-CREATE INDEX "organization_members_is_active_idx" ON "organization_members"("is_active");
+CREATE INDEX "workspace_members_is_active_idx" ON "workspace_members"("is_active");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "organization_members_organization_id_user_id_key" ON "organization_members"("organization_id", "user_id");
+CREATE UNIQUE INDEX "workspace_members_workspace_id_user_id_key" ON "workspace_members"("workspace_id", "user_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "organization_invites_token_hash_key" ON "organization_invites"("token_hash");
+CREATE UNIQUE INDEX "workspace_invites_token_hash_key" ON "workspace_invites"("token_hash");
 
 -- CreateIndex
-CREATE INDEX "organization_invites_organization_id_email_idx" ON "organization_invites"("organization_id", "email");
+CREATE INDEX "workspace_invites_workspace_id_email_idx" ON "workspace_invites"("workspace_id", "email");
 
 -- CreateIndex
-CREATE INDEX "organization_invites_organization_id_idx" ON "organization_invites"("organization_id");
+CREATE INDEX "workspace_invites_workspace_id_idx" ON "workspace_invites"("workspace_id");
 
 -- CreateIndex
-CREATE INDEX "organization_invites_email_idx" ON "organization_invites"("email");
+CREATE INDEX "workspace_invites_email_idx" ON "workspace_invites"("email");
 
 -- CreateIndex
-CREATE INDEX "organization_invites_expires_at_idx" ON "organization_invites"("expires_at");
+CREATE INDEX "workspace_invites_expires_at_idx" ON "workspace_invites"("expires_at");
 
 -- CreateIndex
 CREATE INDEX "permission_policies_scope_role_resource_idx" ON "permission_policies"("scope", "role", "resource");
 
 -- CreateIndex
-CREATE INDEX "permission_policies_scope_organization_id_role_resource_idx" ON "permission_policies"("scope", "organization_id", "role", "resource");
+CREATE INDEX "permission_policies_scope_workspace_id_role_resource_idx" ON "permission_policies"("scope", "workspace_id", "role", "resource");
 
 -- CreateIndex
-CREATE INDEX "permission_policies_organization_id_idx" ON "permission_policies"("organization_id");
+CREATE INDEX "permission_policies_workspace_id_idx" ON "permission_policies"("workspace_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "permission_policies_scope_organization_id_role_resource_key" ON "permission_policies"("scope", "organization_id", "role", "resource");
+CREATE UNIQUE INDEX "permission_policies_scope_workspace_id_role_resource_key" ON "permission_policies"("scope", "workspace_id", "role", "resource");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "organization_invites_active_pending_email_unique"
-ON "organization_invites"("organization_id", "email")
+CREATE UNIQUE INDEX "workspace_invites_active_pending_email_unique"
+ON "workspace_invites"("workspace_id", "email")
 WHERE "accepted_at" IS NULL AND "revoked_at" IS NULL;
 
 -- AddForeignKey
-ALTER TABLE "organizations" ADD CONSTRAINT "organizations_created_by_id_fkey" FOREIGN KEY ("created_by_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "workspaces" ADD CONSTRAINT "workspaces_created_by_id_fkey" FOREIGN KEY ("created_by_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_workspace_id_fkey" FOREIGN KEY ("workspace_id") REFERENCES "workspaces"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_actor_user_id_fkey" FOREIGN KEY ("actor_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "organization_members" ADD CONSTRAINT "organization_members_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "workspace_members" ADD CONSTRAINT "workspace_members_workspace_id_fkey" FOREIGN KEY ("workspace_id") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "organization_members" ADD CONSTRAINT "organization_members_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "workspace_members" ADD CONSTRAINT "workspace_members_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "organization_members" ADD CONSTRAINT "organization_members_invited_by_id_fkey" FOREIGN KEY ("invited_by_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "workspace_members" ADD CONSTRAINT "workspace_members_invited_by_id_fkey" FOREIGN KEY ("invited_by_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "organization_invites" ADD CONSTRAINT "organization_invites_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "workspace_invites" ADD CONSTRAINT "workspace_invites_workspace_id_fkey" FOREIGN KEY ("workspace_id") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "organization_invites" ADD CONSTRAINT "organization_invites_invited_by_id_fkey" FOREIGN KEY ("invited_by_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "workspace_invites" ADD CONSTRAINT "workspace_invites_invited_by_id_fkey" FOREIGN KEY ("invited_by_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "permission_policies" ADD CONSTRAINT "permission_policies_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "permission_policies" ADD CONSTRAINT "permission_policies_workspace_id_fkey" FOREIGN KEY ("workspace_id") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;

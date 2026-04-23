@@ -11,7 +11,7 @@ import { PermissionScope } from '../constants/permission-scope.constant';
 import { PermissionsPolicyService } from './permissions-policy.service';
 
 type PolicyUpdateInput = {
-  organizationId?: string;
+  workspaceId?: string;
   scope: PermissionScope;
   actor: AuthJwtPayload;
   role: PermissionPolicyRole;
@@ -20,7 +20,7 @@ type PolicyUpdateInput = {
 };
 
 type BulkPolicyUpdateInput = {
-  organizationId?: string;
+  workspaceId?: string;
   scope: PermissionScope;
   actor: AuthJwtPayload;
   updates: Array<{
@@ -41,7 +41,7 @@ export class PermissionsUpdateOrchestratorService {
   async updateOne(input: PolicyUpdateInput) {
     const result = await this.permissionsPolicyService.updateOnePolicy({
       scope: input.scope,
-      organizationId: input.organizationId,
+      workspaceId: input.workspaceId,
       role: input.role,
       resource: input.resource,
       mask: input.mask,
@@ -50,12 +50,12 @@ export class PermissionsUpdateOrchestratorService {
 
     await this.auditService.recordSafe(
       this.auditEventFactory.build({
-        organizationId: input.organizationId,
+        workspaceId: input.workspaceId,
         actorUserId: input.actor.sub,
         action:
           input.scope === PermissionScope.platform
             ? AuditAction.PERMISSION_PLATFORM_UPDATED
-            : AuditAction.PERMISSION_ORGANIZATION_UPDATED,
+            : AuditAction.PERMISSION_WORKSPACE_UPDATED,
         entityType: AuditEntityType.PERMISSION_POLICY,
         entityId: result.policy.id,
         metadata: {
@@ -73,21 +73,21 @@ export class PermissionsUpdateOrchestratorService {
   async updateBulk(input: BulkPolicyUpdateInput) {
     const result = await this.permissionsPolicyService.updateBulkPolicies({
       scope: input.scope,
-      organizationId: input.organizationId,
+      workspaceId: input.workspaceId,
       actorUserId: input.actor.sub,
       updates: input.updates,
     });
 
     await this.auditService.recordSafe(
       this.auditEventFactory.build({
-        organizationId: input.organizationId,
+        workspaceId: input.workspaceId,
         actorUserId: input.actor.sub,
         action:
           input.scope === PermissionScope.platform
             ? AuditAction.PERMISSION_PLATFORM_BULK_UPDATED
-            : AuditAction.PERMISSION_ORGANIZATION_BULK_UPDATED,
+            : AuditAction.PERMISSION_WORKSPACE_BULK_UPDATED,
         entityType: AuditEntityType.PERMISSION_POLICY,
-        entityId: input.organizationId ?? input.actor.sub,
+        entityId: input.workspaceId ?? input.actor.sub,
         metadata: {
           count: result.count,
           updates: input.updates,

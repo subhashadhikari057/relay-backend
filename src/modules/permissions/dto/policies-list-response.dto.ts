@@ -5,19 +5,19 @@ class PolicyItemDto {
   @ApiProperty({ example: '11f5f8af-4b7d-470b-a14c-c07f871f2fb9' })
   id!: string;
 
-  @ApiProperty({ enum: ['platform', 'organization'] })
-  scope!: 'platform' | 'organization';
+  @ApiProperty({ enum: ['platform', 'workspace'] })
+  scope!: 'platform' | 'workspace';
 
   @ApiProperty({
     nullable: true,
     example: '7c025579-8f27-4d40-bb22-e3fbf027f440',
   })
-  organizationId!: string | null;
+  workspaceId!: string | null;
 
   @ApiProperty({ enum: PermissionPolicyRole })
   role!: PermissionPolicyRole;
 
-  @ApiProperty({ example: 'org.member' })
+  @ApiProperty({ example: 'workspace.member' })
   resource!: string;
 
   @ApiProperty({ example: 5 })

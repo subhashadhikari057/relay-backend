@@ -1,4 +1,4 @@
 export enum PermissionScope {
   platform = 'platform',
-  organization = 'organization',
+  workspace = 'workspace',
 }

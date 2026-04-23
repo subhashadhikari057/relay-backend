@@ -28,6 +28,7 @@ export default () => ({
       process.env.AUTH_SESSION_TOUCH_INTERVAL_SECONDS ?? '300',
       10,
     ),
+    googleClientId: process.env.GOOGLE_CLIENT_ID,
     emailVerificationTokenExpiresIn:
       process.env.EMAIL_VERIFICATION_TOKEN_EXPIRES_IN ?? '20m',
     emailVerificationUrlBase:
@@ -37,5 +38,11 @@ export default () => ({
   upload: {
     localRoot: process.env.UPLOAD_LOCAL_ROOT ?? 'uploads',
     enableScan: process.env.UPLOAD_ENABLE_SCAN === 'true',
+  },
+  messages: {
+    editWindowMinutes: parseInt(
+      process.env.MESSAGE_EDIT_WINDOW_MINUTES ?? '30',
+      10,
+    ),
   },
 });

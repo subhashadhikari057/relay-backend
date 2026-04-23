@@ -2,7 +2,9 @@
 const { PrismaPg } = require('@prisma/adapter-pg');
 const {
   PrismaClient,
-  OrganizationRole,
+  ChannelMemberRole,
+  ChannelType,
+  WorkspaceRole,
   PermissionPolicyRole,
   PermissionPolicyScope,
   PlatformRole,
@@ -73,50 +75,92 @@ async function main() {
     },
   });
 
-  const organization = await prisma.organization.upsert({
+  const workspace = await prisma.workspace.upsert({
     where: { slug: 'relay-user-org' },
     update: {
-      name: 'Relay User Organization',
-      description: 'Default seeded organization for user@relay.com',
+      name: 'Relay User Workspace',
+      description: 'Default seeded workspace for user@relay.com',
       createdById: user.id,
       isActive: true,
       deletedAt: null,
     },
     create: {
-      name: 'Relay User Organization',
+      name: 'Relay User Workspace',
       slug: 'relay-user-org',
-      description: 'Default seeded organization for user@relay.com',
+      description: 'Default seeded workspace for user@relay.com',
       createdById: user.id,
       isActive: true,
     },
   });
 
-  await prisma.organizationMember.upsert({
+  await prisma.workspaceMember.upsert({
     where: {
-      organizationId_userId: {
-        organizationId: organization.id,
+      workspaceId_userId: {
+        workspaceId: workspace.id,
         userId: user.id,
       },
     },
     update: {
-      role: OrganizationRole.owner,
+      role: WorkspaceRole.owner,
       isActive: true,
       invitedById: null,
     },
     create: {
-      organizationId: organization.id,
+      workspaceId: workspace.id,
       userId: user.id,
-      role: OrganizationRole.owner,
+      role: WorkspaceRole.owner,
       isActive: true,
       invitedById: null,
     },
   });
 
-  const upsertPolicy = async ({ scope, organizationId = null, role, resource, mask }) => {
+  const generalChannel = await prisma.channel.upsert({
+    where: {
+      workspaceId_name: {
+        workspaceId: workspace.id,
+        name: 'general',
+      },
+    },
+    update: {
+      type: ChannelType.public,
+      topic: 'General updates and team discussions',
+      description: 'Default workspace channel for announcements and collaboration.',
+      isArchived: false,
+      createdById: user.id,
+    },
+    create: {
+      workspaceId: workspace.id,
+      createdById: user.id,
+      name: 'general',
+      topic: 'General updates and team discussions',
+      description: 'Default workspace channel for announcements and collaboration.',
+      type: ChannelType.public,
+      isArchived: false,
+    },
+  });
+
+  await prisma.channelMember.upsert({
+    where: {
+      channelId_userId: {
+        channelId: generalChannel.id,
+        userId: user.id,
+      },
+    },
+    update: {
+      role: ChannelMemberRole.admin,
+    },
+    create: {
+      channelId: generalChannel.id,
+      userId: user.id,
+      role: ChannelMemberRole.admin,
+    },
+  });
+
+  const upsertPolicy = async ({ scope, workspaceId = null, role, resource, mask }) => {
     const existing = await prisma.permissionPolicy.findFirst({
       where: {
         scope,
-        organizationId,
+        workspaceId,
         role,
         resource,
       },
@@ -133,7 +177,7 @@ async function main() {
     await prisma.permissionPolicy.create({
       data: {
         scope,
-        organizationId,
+        workspaceId,
         role,
         resource,
         mask,
@@ -149,12 +193,12 @@ async function main() {
 
   const platformPolicies = [
     [PermissionPolicyRole.superadmin, 'platform.auth', ALL],
-    [PermissionPolicyRole.superadmin, 'platform.organizations', ALL],
+    [PermissionPolicyRole.superadmin, 'platform.workspaces', ALL],
     [PermissionPolicyRole.superadmin, 'platform.audit', ALL],
     [PermissionPolicyRole.superadmin, 'platform.upload', ALL],
     [PermissionPolicyRole.superadmin, 'platform.permissions', ALL],
     [PermissionPolicyRole.user, 'platform.auth', 0],
-    [PermissionPolicyRole.user, 'platform.organizations', 0],
+    [PermissionPolicyRole.user, 'platform.workspaces', 0],
     [PermissionPolicyRole.user, 'platform.audit', 0],
     [PermissionPolicyRole.user, 'platform.upload', 0],
     [PermissionPolicyRole.user, 'platform.permissions', 0],
@@ -170,32 +214,44 @@ async function main() {
   }
 
   const orgPolicies = [
-    [PermissionPolicyRole.owner, 'org.organization', ALL],
-    [PermissionPolicyRole.owner, 'org.invite', ALL],
-    [PermissionPolicyRole.owner, 'org.member', ALL],
-    [PermissionPolicyRole.owner, 'org.activity', READ],
-    [PermissionPolicyRole.owner, 'org.permissions', ALL],
-    [PermissionPolicyRole.admin, 'org.organization', READ | UPDATE],
-    [PermissionPolicyRole.admin, 'org.invite', READ | WRITE | DELETE],
-    [PermissionPolicyRole.admin, 'org.member', READ | UPDATE | DELETE],
-    [PermissionPolicyRole.admin, 'org.activity', READ],
-    [PermissionPolicyRole.admin, 'org.permissions', 0],
-    [PermissionPolicyRole.member, 'org.organization', READ],
-    [PermissionPolicyRole.member, 'org.invite', 0],
-    [PermissionPolicyRole.member, 'org.member', READ],
-    [PermissionPolicyRole.member, 'org.activity', READ],
-    [PermissionPolicyRole.member, 'org.permissions', 0],
-    [PermissionPolicyRole.guest, 'org.organization', READ],
-    [PermissionPolicyRole.guest, 'org.invite', 0],
-    [PermissionPolicyRole.guest, 'org.member', READ],
-    [PermissionPolicyRole.guest, 'org.activity', READ],
-    [PermissionPolicyRole.guest, 'org.permissions', 0],
+    [PermissionPolicyRole.owner, 'workspace.workspace', ALL],
+    [PermissionPolicyRole.owner, 'workspace.invite', ALL],
+    [PermissionPolicyRole.owner, 'workspace.member', ALL],
+    [PermissionPolicyRole.owner, 'workspace.activity', READ],
+    [PermissionPolicyRole.owner, 'workspace.permissions', ALL],
+    [PermissionPolicyRole.owner, 'workspace.channel', ALL],
+    [PermissionPolicyRole.owner, 'workspace.channel_member', ALL],
+    [PermissionPolicyRole.owner, 'workspace.message', ALL],
+    [PermissionPolicyRole.admin, 'workspace.workspace', READ | UPDATE],
+    [PermissionPolicyRole.admin, 'workspace.invite', READ | WRITE | DELETE],
+    [PermissionPolicyRole.admin, 'workspace.member', READ | UPDATE | DELETE],
+    [PermissionPolicyRole.admin, 'workspace.activity', READ],
+    [PermissionPolicyRole.admin, 'workspace.permissions', 0],
+    [PermissionPolicyRole.admin, 'workspace.channel', READ | WRITE],
+    [PermissionPolicyRole.admin, 'workspace.channel_member', ALL],
+    [PermissionPolicyRole.admin, 'workspace.message', ALL],
+    [PermissionPolicyRole.member, 'workspace.workspace', READ],
+    [PermissionPolicyRole.member, 'workspace.invite', 0],
+    [PermissionPolicyRole.member, 'workspace.member', READ],
+    [PermissionPolicyRole.member, 'workspace.activity', READ],
+    [PermissionPolicyRole.member, 'workspace.permissions', 0],
+    [PermissionPolicyRole.member, 'workspace.channel', READ | WRITE],
+    [PermissionPolicyRole.member, 'workspace.channel_member', READ],
+    [PermissionPolicyRole.member, 'workspace.message', ALL],
+    [PermissionPolicyRole.guest, 'workspace.workspace', READ],
+    [PermissionPolicyRole.guest, 'workspace.invite', 0],
+    [PermissionPolicyRole.guest, 'workspace.member', READ],
+    [PermissionPolicyRole.guest, 'workspace.activity', READ],
+    [PermissionPolicyRole.guest, 'workspace.permissions', 0],
+    [PermissionPolicyRole.guest, 'workspace.channel', READ],
+    [PermissionPolicyRole.guest, 'workspace.channel_member', READ],
+    [PermissionPolicyRole.guest, 'workspace.message', READ],
   ];
 
   for (const [role, resource, mask] of orgPolicies) {
     await upsertPolicy({
-      scope: PermissionPolicyScope.organization,
-      organizationId: organization.id,
+      scope: PermissionPolicyScope.workspace,
+      workspaceId: workspace.id,
       role,
       resource,
       mask,
@@ -205,9 +261,10 @@ async function main() {
   console.log(`Seeded superadmin user: ${superadmin.email}`);
   console.log(`Seeded user: ${user.email}`);
   console.log(
-    `Seeded organization: ${organization.name} (slug=${organization.slug})`,
+    `Seeded workspace: ${workspace.name} (slug=${workspace.slug})`,
   );
-  console.log('Seeded baseline permission policies for platform and seeded organization.');
+  console.log(`Seeded channel: ${generalChannel.name} in ${workspace.slug}`);
+  console.log('Seeded baseline permission policies for platform and seeded workspace.');
 }
 
 main()

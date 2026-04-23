@@ -32,7 +32,7 @@ CREATE TABLE "sessions" (
     "id" UUID NOT NULL,
     "user_id" UUID NOT NULL,
     "token_hash" TEXT NOT NULL,
-    "active_organization_id" UUID,
+    "active_workspace_id" UUID,
     "expires_at" TIMESTAMPTZ(6) NOT NULL,
     "revoked_at" TIMESTAMPTZ(6),
     "device_info" TEXT,

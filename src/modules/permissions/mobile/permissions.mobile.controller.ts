@@ -18,7 +18,7 @@ import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { AccessTokenGuard } from 'src/modules/auth/shared/guards/access-token.guard';
 import type { AuthJwtPayload } from 'src/modules/auth/shared/interfaces/auth-jwt-payload.interface';
 import { PermissionAction } from '../constants/permission-actions.constant';
-import { OrganizationPermissionResource } from '../constants/permission-resources.constant';
+import { WorkspacePermissionResource } from '../constants/permission-resources.constant';
 import { PermissionScope } from '../constants/permission-scope.constant';
 import { RequirePermission } from '../decorators/require-permission.decorator';
 import { PoliciesListResponseDto } from '../dto/policies-list-response.dto';
@@ -30,8 +30,8 @@ import { PermissionGuard } from '../guards/permission.guard';
 import { PermissionsPolicyService } from '../services/permissions-policy.service';
 import { PermissionsUpdateOrchestratorService } from '../services/permissions-update-orchestrator.service';
 
-@Controller('api/mobile/organizations/:organizationId/permissions')
-@ApiTags('Mobile Organization Permissions')
+@Controller('api/mobile/workspaces/:workspaceId/permissions')
+@ApiTags('Mobile Workspace Permissions')
 @UseGuards(AccessTokenGuard, PermissionGuard)
 @ApiBearerAuth('bearer')
 export class PermissionsMobileController {
@@ -42,67 +42,65 @@ export class PermissionsMobileController {
 
   @Get()
   @RequirePermission({
-    scope: PermissionScope.organization,
-    resource: OrganizationPermissionResource.PERMISSIONS,
+    scope: PermissionScope.workspace,
+    resource: WorkspacePermissionResource.PERMISSIONS,
     action: PermissionAction.read,
   })
   @ApiOperation({
-    operationId: 'mobileOrganizationsPermissionsList',
-    summary: 'List Organization Policies',
+    operationId: 'mobileWorkspacesPermissionsList',
+    summary: 'List Workspace Policies',
     description:
-      'List dynamic organization role policies for the active organization (owner-only access).',
+      'List dynamic workspace role policies for the active workspace (owner-only access).',
   })
   @ApiOkResponse({
     type: PoliciesListResponseDto,
-    description: 'Organization policies returned successfully.',
+    description: 'Workspace policies returned successfully.',
   })
-  async listOrganizationPolicies(
+  async listWorkspacePolicies(
     @CurrentUser() currentUser: AuthJwtPayload,
-    @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
+    @Param('workspaceId', new ParseUUIDPipe()) workspaceId: string,
   ) {
-    await this.permissionsPolicyService.assertOrganizationOwnerCanManagePolicies(
+    await this.permissionsPolicyService.assertWorkspaceOwnerCanManagePolicies(
       currentUser.sub,
-      organizationId,
+      workspaceId,
     );
 
-    return this.permissionsPolicyService.listOrganizationPolicies(
-      organizationId,
-    );
+    return this.permissionsPolicyService.listWorkspacePolicies(workspaceId);
   }
 
   @Patch()
   @RequirePermission({
-    scope: PermissionScope.organization,
-    resource: OrganizationPermissionResource.PERMISSIONS,
+    scope: PermissionScope.workspace,
+    resource: WorkspacePermissionResource.PERMISSIONS,
     action: PermissionAction.update,
   })
   @ApiOperation({
-    operationId: 'mobileOrganizationsPermissionsUpdate',
-    summary: 'Update Organization Policy',
+    operationId: 'mobileWorkspacesPermissionsUpdate',
+    summary: 'Update Workspace Policy',
     description:
-      'Update one organization role policy mask in the active organization (owner-only access).',
+      'Update one workspace role policy mask in the active workspace (owner-only access).',
   })
   @ApiBody({
     type: UpdatePolicyDto,
-    description: 'Single organization policy update payload.',
+    description: 'Single workspace policy update payload.',
   })
   @ApiOkResponse({
     type: UpdatePolicyResponseDto,
-    description: 'Organization policy updated successfully.',
+    description: 'Workspace policy updated successfully.',
   })
-  async updateOrganizationPolicy(
+  async updateWorkspacePolicy(
     @CurrentUser() currentUser: AuthJwtPayload,
-    @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
+    @Param('workspaceId', new ParseUUIDPipe()) workspaceId: string,
     @Body() dto: UpdatePolicyDto,
   ) {
-    await this.permissionsPolicyService.assertOrganizationOwnerCanManagePolicies(
+    await this.permissionsPolicyService.assertWorkspaceOwnerCanManagePolicies(
       currentUser.sub,
-      organizationId,
+      workspaceId,
     );
 
     const result = await this.permissionsUpdateOrchestrator.updateOne({
-      scope: PermissionScope.organization,
-      organizationId,
+      scope: PermissionScope.workspace,
+      workspaceId,
       actor: currentUser,
       role: dto.role,
       resource: dto.resource,
@@ -119,37 +117,37 @@ export class PermissionsMobileController {
 
   @Patch('bulk')
   @RequirePermission({
-    scope: PermissionScope.organization,
-    resource: OrganizationPermissionResource.PERMISSIONS,
+    scope: PermissionScope.workspace,
+    resource: WorkspacePermissionResource.PERMISSIONS,
     action: PermissionAction.update,
   })
   @ApiOperation({
-    operationId: 'mobileOrganizationsPermissionsBulkUpdate',
-    summary: 'Bulk Update Organization Policies',
+    operationId: 'mobileWorkspacesPermissionsBulkUpdate',
+    summary: 'Bulk Update Workspace Policies',
     description:
-      'Bulk update organization role policy masks in the active organization (owner-only access).',
+      'Bulk update workspace role policy masks in the active workspace (owner-only access).',
   })
   @ApiBody({
     type: UpdatePoliciesBulkDto,
-    description: 'Bulk organization policy update payload.',
+    description: 'Bulk workspace policy update payload.',
   })
   @ApiOkResponse({
     type: UpdatePoliciesBulkResponseDto,
-    description: 'Organization policies updated successfully.',
+    description: 'Workspace policies updated successfully.',
   })
-  async bulkUpdateOrganizationPolicies(
+  async bulkUpdateWorkspacePolicies(
     @CurrentUser() currentUser: AuthJwtPayload,
-    @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
+    @Param('workspaceId', new ParseUUIDPipe()) workspaceId: string,
     @Body() dto: UpdatePoliciesBulkDto,
   ) {
-    await this.permissionsPolicyService.assertOrganizationOwnerCanManagePolicies(
+    await this.permissionsPolicyService.assertWorkspaceOwnerCanManagePolicies(
       currentUser.sub,
-      organizationId,
+      workspaceId,
     );
 
     const result = await this.permissionsUpdateOrchestrator.updateBulk({
-      scope: PermissionScope.organization,
-      organizationId,
+      scope: PermissionScope.workspace,
+      workspaceId,
       actor: currentUser,
       updates: dto.updates,
     });

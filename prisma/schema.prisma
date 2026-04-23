@@ -16,16 +16,42 @@ enum PlatformRole {
   user
 }
 
-enum OrganizationRole {
+enum AuthProvider {
+  local
+  google
+}
+
+enum WorkspaceRole {
   owner
   admin
   member
   guest
 }
 
+enum ChannelType {
+  public
+  private
+}
+
+enum ChannelMemberRole {
+  admin
+  member
+}
+
+enum DirectConversationType {
+  one_to_one
+  group
+}
+
+enum MessageType {
+  text
+  file
+  system
+}
+
 enum PermissionPolicyScope {
   platform
-  organization
+  workspace
 }
 
 enum PermissionPolicyRole {
@@ -40,7 +66,7 @@ enum PermissionPolicyRole {
 model User {
   id            String                   @id @default(uuid()) @db.Uuid
   email         String                   @unique @db.Citext
-  passwordHash  String                   @map("password_hash")
+  passwordHash  String?                  @map("password_hash")
   fullName      String                   @map("full_name") @db.VarChar(255)
   displayName   String?                  @map("display_name") @db.VarChar(80)
   avatarUrl     String?                  @map("avatar_url")
@@ -54,21 +80,46 @@ model User {
   updatedAt     DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   sessions                Session[]
+  authAccounts            AuthAccount[]
   emailVerificationTokens EmailVerificationToken[]
-  organizationsCreated    Organization[]      @relation("organization_created_by")
-  organizationMemberships OrganizationMember[] @relation("organization_member_user")
-  organizationInvitesSent OrganizationInvite[] @relation("organization_invited_by")
-  organizationMembershipInvites OrganizationMember[] @relation("organization_member_invited_by")
+  channelsCreated         Channel[]          @relation("channel_created_by")
+  channelMemberships      ChannelMember[]
+  channelReads            UserChannelRead[]
+  directConversationsCreated DirectConversation[] @relation("direct_conversation_created_by")
+  directConversationMemberships DirectConversationMember[]
+  dmReads                UserDmRead[]
+  messages               Message[]          @relation("message_sender")
+  messageReactions       MessageReaction[]
+  pinnedMessages         MessagePin[]       @relation("message_pinned_by")
+  workspacesCreated    Workspace[]      @relation("workspace_created_by")
+  workspaceMemberships WorkspaceMember[] @relation("workspace_member_user")
+  workspaceInvitesSent WorkspaceInvite[] @relation("workspace_invited_by")
+  workspaceMembershipInvites WorkspaceMember[] @relation("workspace_member_invited_by")
   auditActorLogs           AuditLog[]                @relation("audit_actor_user")
 
   @@map("users")
+}
+
+model AuthAccount {
+  id                String       @id @default(uuid()) @db.Uuid
+  userId            String       @map("user_id") @db.Uuid
+  provider          AuthProvider
+  providerAccountId String       @map("provider_account_id") @db.VarChar(255)
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("auth_accounts")
 }
 
 model Session {
   id           String    @id @default(uuid()) @db.Uuid
   userId       String    @map("user_id") @db.Uuid
   tokenHash    String    @unique @map("token_hash")
-  activeOrganizationId String? @map("active_organization_id") @db.Uuid
+  activeWorkspaceId String? @map("active_workspace_id") @db.Uuid
   expiresAt    DateTime  @map("expires_at") @db.Timestamptz(6)
   revokedAt    DateTime? @map("revoked_at") @db.Timestamptz(6)
   deviceInfo   String?   @map("device_info")
@@ -99,7 +150,7 @@ model EmailVerificationToken {
   @@map("email_verification_tokens")
 }
 
-model Organization {
+model Workspace {
   id          String   @id @default(uuid()) @db.Uuid
   name        String   @db.VarChar(120)
   slug        String   @unique @db.VarChar(80)
@@ -111,21 +162,24 @@ model Organization {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  createdBy User                 @relation("organization_created_by", fields: [createdById], references: [id], onDelete: Restrict)
-  members   OrganizationMember[]
-  invites   OrganizationInvite[]
+  createdBy User                 @relation("workspace_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  members   WorkspaceMember[]
+  invites   WorkspaceInvite[]
+  channels  Channel[]
+  directConversations DirectConversation[]
+  messages  Message[]
   auditLogs AuditLog[]
   permissionPolicies PermissionPolicy[]
 
   @@index([createdById])
   @@index([isActive])
   @@index([deletedAt])
-  @@map("organizations")
+  @@map("workspaces")
 }
 
 model AuditLog {
   id             String    @id @default(uuid()) @db.Uuid
-  organizationId String?   @map("organization_id") @db.Uuid
+  workspaceId String?   @map("workspace_id") @db.Uuid
   actorUserId    String?   @map("actor_user_id") @db.Uuid
   action         String    @db.VarChar(120)
   entityType     String    @map("entity_type") @db.VarChar(80)
@@ -133,41 +187,41 @@ model AuditLog {
   metadata       Json?     @db.JsonB
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   actorUser    User?         @relation("audit_actor_user", fields: [actorUserId], references: [id], onDelete: SetNull)
 
-  @@index([organizationId, createdAt])
+  @@index([workspaceId, createdAt])
   @@index([action, createdAt])
   @@index([actorUserId, createdAt])
   @@index([entityType, entityId])
   @@map("audit_logs")
 }
 
-model OrganizationMember {
+model WorkspaceMember {
   id             String           @id @default(uuid()) @db.Uuid
-  organizationId String           @map("organization_id") @db.Uuid
+  workspaceId String           @map("workspace_id") @db.Uuid
   userId         String           @map("user_id") @db.Uuid
-  role           OrganizationRole @default(member)
+  role           WorkspaceRole @default(member)
   joinedAt       DateTime         @default(now()) @map("joined_at") @db.Timestamptz(6)
   invitedById    String?          @map("invited_by_id") @db.Uuid
   isActive       Boolean          @default(true) @map("is_active")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user         User         @relation("organization_member_user", fields: [userId], references: [id], onDelete: Cascade)
-  invitedBy    User?        @relation("organization_member_invited_by", fields: [invitedById], references: [id], onDelete: SetNull)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user         User         @relation("workspace_member_user", fields: [userId], references: [id], onDelete: Cascade)
+  invitedBy    User?        @relation("workspace_member_invited_by", fields: [invitedById], references: [id], onDelete: SetNull)
 
-  @@unique([organizationId, userId])
+  @@unique([workspaceId, userId])
   @@index([userId])
-  @@index([organizationId, role])
+  @@index([workspaceId, role])
   @@index([isActive])
-  @@map("organization_members")
+  @@map("workspace_members")
 }
 
-model OrganizationInvite {
+model WorkspaceInvite {
   id             String           @id @default(uuid()) @db.Uuid
-  organizationId String           @map("organization_id") @db.Uuid
+  workspaceId String           @map("workspace_id") @db.Uuid
   email          String           @db.Citext
-  role           OrganizationRole @default(member)
+  role           WorkspaceRole @default(member)
   tokenHash      String           @unique @map("token_hash")
   invitedById    String           @map("invited_by_id") @db.Uuid
   expiresAt      DateTime         @map("expires_at") @db.Timestamptz(6)
@@ -175,31 +229,225 @@ model OrganizationInvite {
   revokedAt      DateTime?        @map("revoked_at") @db.Timestamptz(6)
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  invitedBy    User         @relation("organization_invited_by", fields: [invitedById], references: [id], onDelete: Restrict)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy    User         @relation("workspace_invited_by", fields: [invitedById], references: [id], onDelete: Restrict)
 
-  @@index([organizationId, email])
-  @@index([organizationId])
+  @@index([workspaceId, email])
+  @@index([workspaceId])
   @@index([email])
   @@index([expiresAt])
-  @@map("organization_invites")
+  @@map("workspace_invites")
 }
 
 model PermissionPolicy {
   id             String               @id @default(uuid()) @db.Uuid
   scope          PermissionPolicyScope
-  organizationId String?              @map("organization_id") @db.Uuid
+  workspaceId String?              @map("workspace_id") @db.Uuid
   role           PermissionPolicyRole
   resource       String               @db.VarChar(120)
   mask           Int
   createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([scope, role, resource])
-  @@index([scope, organizationId, role, resource])
-  @@unique([scope, organizationId, role, resource])
-  @@index([organizationId])
+  @@index([scope, workspaceId, role, resource])
+  @@unique([scope, workspaceId, role, resource])
+  @@index([workspaceId])
   @@map("permission_policies")
+}
+
+model Channel {
+  id          String      @id @default(uuid()) @db.Uuid
+  workspaceId String      @map("workspace_id") @db.Uuid
+  createdById String      @map("created_by_id") @db.Uuid
+  name        String      @db.Citext
+  topic       String?     @db.VarChar(250)
+  description String?     @db.VarChar(500)
+  type        ChannelType @default(public)
+  isArchived  Boolean     @default(false) @map("is_archived")
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User              @relation("channel_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  members   ChannelMember[]
+  reads     UserChannelRead[]
+  messages  Message[]
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId, isArchived, type])
+  @@index([workspaceId, createdAt])
+  @@index([createdById])
+  @@map("channels")
+}
+
+model ChannelMember {
+  channelId String            @map("channel_id") @db.Uuid
+  userId    String            @map("user_id") @db.Uuid
+  role      ChannelMemberRole @default(member)
+  joinedAt  DateTime          @default(now()) @map("joined_at") @db.Timestamptz(6)
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([channelId, userId])
+  @@index([userId])
+  @@index([channelId, joinedAt])
+  @@map("channel_members")
+}
+
+model UserChannelRead {
+  userId            String    @map("user_id") @db.Uuid
+  channelId         String    @map("channel_id") @db.Uuid
+  lastReadMessageId String?   @map("last_read_message_id") @db.Uuid
+  lastReadAt        DateTime? @map("last_read_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@id([userId, channelId])
+  @@index([channelId])
+  @@map("user_channel_reads")
+}
+
+model DirectConversation {
+  id          String                 @id @default(uuid()) @db.Uuid
+  workspaceId String                 @map("workspace_id") @db.Uuid
+  createdById String                 @map("created_by_id") @db.Uuid
+  type        DirectConversationType @default(one_to_one)
+  oneToOneKey String?                @map("one_to_one_key") @db.VarChar(160)
+  title       String?                @db.VarChar(160)
+  lastMessageAt DateTime?            @map("last_message_at") @db.Timestamptz(6)
+  createdAt   DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace Workspace                 @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User                      @relation("direct_conversation_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  members   DirectConversationMember[]
+  reads     UserDmRead[]
+  messages  Message[]
+
+  @@index([workspaceId, updatedAt])
+  @@index([workspaceId, lastMessageAt])
+  @@index([createdById])
+  @@unique([workspaceId, oneToOneKey])
+  @@map("direct_conversations")
+}
+
+model DirectConversationMember {
+  directConversationId String    @map("direct_conversation_id") @db.Uuid
+  userId               String    @map("user_id") @db.Uuid
+  joinedAt             DateTime  @default(now()) @map("joined_at") @db.Timestamptz(6)
+  leftAt               DateTime? @map("left_at") @db.Timestamptz(6)
+
+  directConversation DirectConversation @relation(fields: [directConversationId], references: [id], onDelete: Cascade)
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([directConversationId, userId])
+  @@index([userId, joinedAt])
+  @@index([directConversationId, joinedAt])
+  @@index([leftAt])
+  @@map("direct_conversation_members")
+}
+
+model UserDmRead {
+  userId               String    @map("user_id") @db.Uuid
+  directConversationId String    @map("direct_conversation_id") @db.Uuid
+  lastReadMessageId    String?   @map("last_read_message_id") @db.Uuid
+  lastReadAt           DateTime? @map("last_read_at") @db.Timestamptz(6)
+  updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  directConversation DirectConversation @relation(fields: [directConversationId], references: [id], onDelete: Cascade)
+
+  @@id([userId, directConversationId])
+  @@index([directConversationId])
+  @@map("user_dm_reads")
+}
+
+model Message {
+  id               String      @id @default(uuid()) @db.Uuid
+  workspaceId      String      @map("workspace_id") @db.Uuid
+  channelId        String?     @map("channel_id") @db.Uuid
+  directConversationId String? @map("direct_conversation_id") @db.Uuid
+  senderUserId     String      @map("sender_user_id") @db.Uuid
+  type             MessageType @default(text)
+  content          String?
+  metadata         Json?       @db.JsonB
+  parentMessageId  String?     @map("parent_message_id") @db.Uuid
+  editedAt         DateTime?   @map("edited_at") @db.Timestamptz(6)
+  deletedAt        DateTime?   @map("deleted_at") @db.Timestamptz(6)
+  createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace       Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  channel         Channel?             @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  directConversation DirectConversation? @relation(fields: [directConversationId], references: [id], onDelete: Cascade)
+  sender          User                 @relation("message_sender", fields: [senderUserId], references: [id], onDelete: Restrict)
+  parentMessage   Message?             @relation("message_thread", fields: [parentMessageId], references: [id], onDelete: SetNull)
+  threadReplies   Message[]            @relation("message_thread")
+  attachments     MessageAttachment[]
+  reactions       MessageReaction[]
+  pin             MessagePin?
+
+  @@index([channelId, createdAt, id])
+  @@index([directConversationId, createdAt, id])
+  @@index([parentMessageId, createdAt, id])
+  @@index([senderUserId, createdAt])
+  @@index([workspaceId, channelId, deletedAt])
+  @@index([workspaceId, directConversationId, deletedAt])
+  @@index([workspaceId, deletedAt, createdAt, id])
+  @@index([channelId, deletedAt, createdAt, id])
+  @@index([directConversationId, deletedAt, createdAt, id])
+  @@map("messages")
+}
+
+model MessageAttachment {
+  id           String   @id @default(uuid()) @db.Uuid
+  messageId    String   @map("message_id") @db.Uuid
+  path         String
+  originalName String   @map("original_name")
+  mimeType     String   @map("mime_type")
+  size         Int
+  sortOrder    Int      @default(0) @map("sort_order")
+  width        Int?
+  height       Int?
+  durationMs   Int?     @map("duration_ms")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId, sortOrder])
+  @@map("message_attachments")
+}
+
+model MessageReaction {
+  messageId  String   @map("message_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  emoji      String   @db.VarChar(16)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId])
+  @@index([messageId, emoji])
+  @@index([userId, createdAt])
+  @@map("message_reactions")
+}
+
+model MessagePin {
+  messageId       String    @id @map("message_id") @db.Uuid
+  pinnedByUserId  String?   @map("pinned_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  message      Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  pinnedByUser User?   @relation("message_pinned_by", fields: [pinnedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([pinnedByUserId, createdAt])
+  @@map("message_pins")
 }

@@ -4,7 +4,7 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AdminAuditQueryDto } from './dto/admin-audit-query.dto';
 import { MobileMyAuditQueryDto } from './dto/mobile-my-audit-query.dto';
-import { MobileOrganizationActivityQueryDto } from './dto/mobile-organization-activity-query.dto';
+import { MobileWorkspaceActivityQueryDto } from './dto/mobile-workspace-activity-query.dto';
 import { AuditAction, AuditEntityType } from './shared/audit.constants';
 
 const DEFAULT_PAGE = 1;
@@ -12,7 +12,7 @@ const DEFAULT_LIMIT = 20;
 const DEFAULT_ORG_ACTIVITY_LIMIT = 25;
 
 type RecordAuditInput = {
-  organizationId?: string | null;
+  workspaceId?: string | null;
   actorUserId?: string | null;
   action: AuditAction;
   entityType: AuditEntityType;
@@ -22,7 +22,7 @@ type RecordAuditInput = {
 
 type AuditRow = {
   id: string;
-  organizationId: string | null;
+  workspaceId: string | null;
   actorUserId: string | null;
   action: AuditAction;
   entityType: AuditEntityType;
@@ -32,7 +32,7 @@ type AuditRow = {
 };
 
 type AuditListFilters = {
-  organizationId?: string;
+  workspaceId?: string;
   actorUserId?: string;
   action?: AuditAction;
   from?: string;
@@ -49,7 +49,7 @@ export class AuditService {
     await this.prisma.auditLog.create({
       data: {
         id: randomUUID(),
-        organizationId: input.organizationId ?? null,
+        workspaceId: input.workspaceId ?? null,
         actorUserId: input.actorUserId ?? null,
         action: input.action,
         entityType: input.entityType,
@@ -72,16 +72,16 @@ export class AuditService {
     }
   }
 
-  async listOrganizationActivity(
-    organizationId: string,
-    query: MobileOrganizationActivityQueryDto,
+  async listWorkspaceActivity(
+    workspaceId: string,
+    query: MobileWorkspaceActivityQueryDto,
   ) {
     const limit = query.limit ?? DEFAULT_ORG_ACTIVITY_LIMIT;
 
     const items = await this.prisma.$queryRawUnsafe<AuditRow[]>(
       `SELECT
         id,
-        organization_id as "organizationId",
+        workspace_id as "workspaceId",
         actor_user_id as "actorUserId",
         action,
         entity_type as "entityType",
@@ -89,10 +89,10 @@ export class AuditService {
         metadata,
         created_at as "createdAt"
       FROM "audit_logs"
-      WHERE organization_id = $1
+      WHERE workspace_id = $1
       ORDER BY created_at DESC
       LIMIT $2`,
-      organizationId,
+      workspaceId,
       limit,
     );
 
@@ -102,12 +102,8 @@ export class AuditService {
     };
   }
 
-  async listAdminAudit(query: AdminAuditQueryDto, organizationId?: string) {
-    if (
-      organizationId &&
-      query.organizationId &&
-      organizationId !== query.organizationId
-    ) {
+  async listAdminAudit(query: AdminAuditQueryDto, workspaceId?: string) {
+    if (workspaceId && query.workspaceId && workspaceId !== query.workspaceId) {
       const normalizedPage = query.page ?? DEFAULT_PAGE;
       const normalizedLimit = query.limit ?? DEFAULT_LIMIT;
       return {
@@ -120,7 +116,7 @@ export class AuditService {
 
     return this.listAuditPage(
       {
-        organizationId: organizationId ?? query.organizationId,
+        workspaceId: workspaceId ?? query.workspaceId,
         actorUserId: query.actorUserId,
         action: query.action,
         from: query.from,
@@ -135,7 +131,7 @@ export class AuditService {
     return this.listAuditPage(
       {
         actorUserId: userId,
-        organizationId: query.organizationId,
+        workspaceId: query.workspaceId,
         action: query.action,
         from: query.from,
         to: query.to,
@@ -159,10 +155,8 @@ export class AuditService {
       return `$${params.length}`;
     };
 
-    if (filters.organizationId) {
-      whereClauses.push(
-        `organization_id = ${pushParam(filters.organizationId)}`,
-      );
+    if (filters.workspaceId) {
+      whereClauses.push(`workspace_id = ${pushParam(filters.workspaceId)}`);
     }
     if (filters.actorUserId) {
       whereClauses.push(`actor_user_id = ${pushParam(filters.actorUserId)}`);
@@ -184,7 +178,7 @@ export class AuditService {
     const offsetPlaceholder = pushParam(offset);
     const sql = `SELECT
       id,
-      organization_id as "organizationId",
+      workspace_id as "workspaceId",
       actor_user_id as "actorUserId",
       action,
       entity_type as "entityType",
@@ -210,7 +204,7 @@ export class AuditService {
   private toAuditItemDto(item: AuditRow) {
     return {
       id: item.id,
-      organizationId: item.organizationId,
+      workspaceId: item.workspaceId,
       actorUserId: item.actorUserId,
       action: item.action,
       entityType: item.entityType,

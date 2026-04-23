@@ -5,7 +5,7 @@ import {
   PermissionAction,
 } from './permission-actions.constant';
 import {
-  OrganizationPermissionResource,
+  WorkspacePermissionResource,
   PlatformPermissionResource,
 } from './permission-resources.constant';
 import { PermissionScope } from './permission-scope.constant';
@@ -33,7 +33,7 @@ export const DEFAULT_PERMISSION_POLICIES: PermissionPolicyDefinition[] = [
   {
     scope: PermissionScope.platform,
     role: PermissionPolicyRole.superadmin,
-    resource: PlatformPermissionResource.ORGANIZATIONS,
+    resource: PlatformPermissionResource.WORKSPACES,
     mask: ALL_PERMISSION_BITS,
   },
   {
@@ -63,7 +63,7 @@ export const DEFAULT_PERMISSION_POLICIES: PermissionPolicyDefinition[] = [
   {
     scope: PermissionScope.platform,
     role: PermissionPolicyRole.user,
-    resource: PlatformPermissionResource.ORGANIZATIONS,
+    resource: PlatformPermissionResource.WORKSPACES,
     mask: noAccess,
   },
   {
@@ -85,146 +85,225 @@ export const DEFAULT_PERMISSION_POLICIES: PermissionPolicyDefinition[] = [
     mask: noAccess,
   },
   {
-    scope: PermissionScope.organization,
+    scope: PermissionScope.workspace,
     role: PermissionPolicyRole.owner,
-    resource: OrganizationPermissionResource.ORGANIZATION,
+    resource: WorkspacePermissionResource.WORKSPACE,
     mask: ALL_PERMISSION_BITS,
   },
   {
-    scope: PermissionScope.organization,
+    scope: PermissionScope.workspace,
     role: PermissionPolicyRole.owner,
-    resource: OrganizationPermissionResource.INVITES,
+    resource: WorkspacePermissionResource.INVITES,
     mask: ALL_PERMISSION_BITS,
   },
   {
-    scope: PermissionScope.organization,
+    scope: PermissionScope.workspace,
     role: PermissionPolicyRole.owner,
-    resource: OrganizationPermissionResource.MEMBERS,
+    resource: WorkspacePermissionResource.MEMBERS,
     mask: ALL_PERMISSION_BITS,
   },
   {
-    scope: PermissionScope.organization,
+    scope: PermissionScope.workspace,
     role: PermissionPolicyRole.owner,
-    resource: OrganizationPermissionResource.ACTIVITY,
+    resource: WorkspacePermissionResource.ACTIVITY,
     mask: PermissionBits[PermissionAction.read],
   },
   {
-    scope: PermissionScope.organization,
+    scope: PermissionScope.workspace,
     role: PermissionPolicyRole.owner,
-    resource: OrganizationPermissionResource.PERMISSIONS,
+    resource: WorkspacePermissionResource.PERMISSIONS,
     mask: ALL_PERMISSION_BITS,
   },
   {
-    scope: PermissionScope.organization,
+    scope: PermissionScope.workspace,
+    role: PermissionPolicyRole.owner,
+    resource: WorkspacePermissionResource.CHANNELS,
+    mask: ALL_PERMISSION_BITS,
+  },
+  {
+    scope: PermissionScope.workspace,
+    role: PermissionPolicyRole.owner,
+    resource: WorkspacePermissionResource.CHANNEL_MEMBERS,
+    mask: ALL_PERMISSION_BITS,
+  },
+  {
+    scope: PermissionScope.workspace,
+    role: PermissionPolicyRole.owner,
+    resource: WorkspacePermissionResource.MESSAGES,
+    mask: ALL_PERMISSION_BITS,
+  },
+  {
+    scope: PermissionScope.workspace,
     role: PermissionPolicyRole.admin,
-    resource: OrganizationPermissionResource.ORGANIZATION,
+    resource: WorkspacePermissionResource.WORKSPACE,
     mask:
       PermissionBits[PermissionAction.read] |
       PermissionBits[PermissionAction.update],
   },
   {
-    scope: PermissionScope.organization,
+    scope: PermissionScope.workspace,
     role: PermissionPolicyRole.admin,
-    resource: OrganizationPermissionResource.INVITES,
+    resource: WorkspacePermissionResource.INVITES,
     mask:
       PermissionBits[PermissionAction.read] |
       PermissionBits[PermissionAction.write] |
       PermissionBits[PermissionAction.delete],
   },
   {
-    scope: PermissionScope.organization,
+    scope: PermissionScope.workspace,
     role: PermissionPolicyRole.admin,
-    resource: OrganizationPermissionResource.MEMBERS,
+    resource: WorkspacePermissionResource.MEMBERS,
     mask:
       PermissionBits[PermissionAction.read] |
       PermissionBits[PermissionAction.update] |
       PermissionBits[PermissionAction.delete],
   },
   {
-    scope: PermissionScope.organization,
+    scope: PermissionScope.workspace,
     role: PermissionPolicyRole.admin,
-    resource: OrganizationPermissionResource.ACTIVITY,
+    resource: WorkspacePermissionResource.ACTIVITY,
     mask: PermissionBits[PermissionAction.read],
   },
   {
-    scope: PermissionScope.organization,
+    scope: PermissionScope.workspace,
     role: PermissionPolicyRole.admin,
-    resource: OrganizationPermissionResource.PERMISSIONS,
+    resource: WorkspacePermissionResource.PERMISSIONS,
     mask: noAccess,
   },
   {
-    scope: PermissionScope.organization,
+    scope: PermissionScope.workspace,
+    role: PermissionPolicyRole.admin,
+    resource: WorkspacePermissionResource.CHANNELS,
+    mask:
+      PermissionBits[PermissionAction.read] |
+      PermissionBits[PermissionAction.write],
+  },
+  {
+    scope: PermissionScope.workspace,
+    role: PermissionPolicyRole.admin,
+    resource: WorkspacePermissionResource.CHANNEL_MEMBERS,
+    mask: ALL_PERMISSION_BITS,
+  },
+  {
+    scope: PermissionScope.workspace,
+    role: PermissionPolicyRole.admin,
+    resource: WorkspacePermissionResource.MESSAGES,
+    mask: ALL_PERMISSION_BITS,
+  },
+  {
+    scope: PermissionScope.workspace,
     role: PermissionPolicyRole.member,
-    resource: OrganizationPermissionResource.ORGANIZATION,
+    resource: WorkspacePermissionResource.WORKSPACE,
     mask: PermissionBits[PermissionAction.read],
   },
   {
-    scope: PermissionScope.organization,
+    scope: PermissionScope.workspace,
     role: PermissionPolicyRole.member,
-    resource: OrganizationPermissionResource.INVITES,
+    resource: WorkspacePermissionResource.INVITES,
     mask: noAccess,
   },
   {
-    scope: PermissionScope.organization,
+    scope: PermissionScope.workspace,
     role: PermissionPolicyRole.member,
-    resource: OrganizationPermissionResource.MEMBERS,
+    resource: WorkspacePermissionResource.MEMBERS,
     mask: PermissionBits[PermissionAction.read],
   },
   {
-    scope: PermissionScope.organization,
+    scope: PermissionScope.workspace,
     role: PermissionPolicyRole.member,
-    resource: OrganizationPermissionResource.ACTIVITY,
+    resource: WorkspacePermissionResource.ACTIVITY,
     mask: PermissionBits[PermissionAction.read],
   },
   {
-    scope: PermissionScope.organization,
+    scope: PermissionScope.workspace,
     role: PermissionPolicyRole.member,
-    resource: OrganizationPermissionResource.PERMISSIONS,
+    resource: WorkspacePermissionResource.PERMISSIONS,
     mask: noAccess,
   },
   {
-    scope: PermissionScope.organization,
-    role: PermissionPolicyRole.guest,
-    resource: OrganizationPermissionResource.ORGANIZATION,
+    scope: PermissionScope.workspace,
+    role: PermissionPolicyRole.member,
+    resource: WorkspacePermissionResource.CHANNELS,
+    mask:
+      PermissionBits[PermissionAction.read] |
+      PermissionBits[PermissionAction.write],
+  },
+  {
+    scope: PermissionScope.workspace,
+    role: PermissionPolicyRole.member,
+    resource: WorkspacePermissionResource.CHANNEL_MEMBERS,
     mask: PermissionBits[PermissionAction.read],
   },
   {
-    scope: PermissionScope.organization,
+    scope: PermissionScope.workspace,
+    role: PermissionPolicyRole.member,
+    resource: WorkspacePermissionResource.MESSAGES,
+    mask: ALL_PERMISSION_BITS,
+  },
+  {
+    scope: PermissionScope.workspace,
     role: PermissionPolicyRole.guest,
-    resource: OrganizationPermissionResource.INVITES,
+    resource: WorkspacePermissionResource.WORKSPACE,
+    mask: PermissionBits[PermissionAction.read],
+  },
+  {
+    scope: PermissionScope.workspace,
+    role: PermissionPolicyRole.guest,
+    resource: WorkspacePermissionResource.INVITES,
     mask: noAccess,
   },
   {
-    scope: PermissionScope.organization,
+    scope: PermissionScope.workspace,
     role: PermissionPolicyRole.guest,
-    resource: OrganizationPermissionResource.MEMBERS,
+    resource: WorkspacePermissionResource.MEMBERS,
     mask: PermissionBits[PermissionAction.read],
   },
   {
-    scope: PermissionScope.organization,
+    scope: PermissionScope.workspace,
     role: PermissionPolicyRole.guest,
-    resource: OrganizationPermissionResource.ACTIVITY,
+    resource: WorkspacePermissionResource.ACTIVITY,
     mask: PermissionBits[PermissionAction.read],
   },
   {
-    scope: PermissionScope.organization,
+    scope: PermissionScope.workspace,
     role: PermissionPolicyRole.guest,
-    resource: OrganizationPermissionResource.PERMISSIONS,
+    resource: WorkspacePermissionResource.PERMISSIONS,
     mask: noAccess,
+  },
+  {
+    scope: PermissionScope.workspace,
+    role: PermissionPolicyRole.guest,
+    resource: WorkspacePermissionResource.CHANNELS,
+    mask: PermissionBits[PermissionAction.read],
+  },
+  {
+    scope: PermissionScope.workspace,
+    role: PermissionPolicyRole.guest,
+    resource: WorkspacePermissionResource.CHANNEL_MEMBERS,
+    mask: PermissionBits[PermissionAction.read],
+  },
+  {
+    scope: PermissionScope.workspace,
+    role: PermissionPolicyRole.guest,
+    resource: WorkspacePermissionResource.MESSAGES,
+    mask: PermissionBits[PermissionAction.read],
   },
 ];
 
-export const ORG_PERMISSION_RESOURCES = [
-  OrganizationPermissionResource.ORGANIZATION,
-  OrganizationPermissionResource.INVITES,
-  OrganizationPermissionResource.MEMBERS,
-  OrganizationPermissionResource.ACTIVITY,
-  OrganizationPermissionResource.PERMISSIONS,
+export const WORKSPACE_PERMISSION_RESOURCES = [
+  WorkspacePermissionResource.WORKSPACE,
+  WorkspacePermissionResource.INVITES,
+  WorkspacePermissionResource.MEMBERS,
+  WorkspacePermissionResource.ACTIVITY,
+  WorkspacePermissionResource.PERMISSIONS,
+  WorkspacePermissionResource.CHANNELS,
+  WorkspacePermissionResource.CHANNEL_MEMBERS,
+  WorkspacePermissionResource.MESSAGES,
 ] as const;
 
 export const PLATFORM_PERMISSION_RESOURCES = [
   PlatformPermissionResource.AUTH,
-  PlatformPermissionResource.ORGANIZATIONS,
+  PlatformPermissionResource.WORKSPACES,
   PlatformPermissionResource.AUDIT,
   PlatformPermissionResource.UPLOAD,
   PlatformPermissionResource.PERMISSIONS,

@@ -15,9 +15,9 @@ import { MessagesModule } from './modules/messages/messages.module';
 import { ReactionsModule } from './modules/reactions/reactions.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { HealthModule } from './modules/health/health.module';
-import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
+import { SystemMessagesModule } from './modules/system-messages/system-messages.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -39,9 +39,9 @@ import { PrismaModule } from './prisma/prisma.module';
     ReactionsModule,
     NotificationsModule,
     HealthModule,
-    OrganizationsModule,
     UploadModule,
     PermissionsModule,
+    SystemMessagesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

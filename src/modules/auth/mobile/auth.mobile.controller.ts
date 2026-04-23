@@ -29,7 +29,7 @@ import { EmailVerificationConfirmResponseDto } from '../shared/dto/email-verific
 import { EmailVerificationRequestResponseDto } from '../shared/dto/email-verification-request-response.dto';
 import { LogoutResponseDto } from '../shared/dto/logout-response.dto';
 import { RevokeSessionsResponseDto } from '../shared/dto/revoke-sessions-response.dto';
-import { SwitchActiveOrganizationResponseDto } from '../shared/dto/switch-active-organization-response.dto';
+import { SwitchActiveWorkspaceResponseDto } from '../shared/dto/switch-active-workspace-response.dto';
 import { AccessTokenGuard } from '../shared/guards/access-token.guard';
 import type { AuthJwtPayload } from '../shared/interfaces/auth-jwt-payload.interface';
 import { AuthCookieService } from '../shared/services/auth-cookie.service';
@@ -44,7 +44,7 @@ import { ConfirmEmailVerificationDto } from './dto/confirm-email-verification.dt
 import { LoginMobileDto } from './dto/login-mobile.dto';
 import { RequestEmailVerificationDto } from './dto/request-email-verification.dto';
 import { SignupMobileDto } from './dto/signup-mobile.dto';
-import { SwitchActiveOrganizationDto } from './dto/switch-active-organization.dto';
+import { SwitchActiveWorkspaceDto } from './dto/switch-active-workspace.dto';
 
 @Controller('api/mobile/auth')
 @ApiTags('Mobile Auth')
@@ -295,38 +295,37 @@ export class MobileAuthController {
     );
   }
 
-  @Post('active-organization')
+  @Post('active-workspace')
   @UseGuards(AccessTokenGuard)
   @ApiBearerAuth('bearer')
   @ApiOperation({
-    operationId: 'mobileAuthSwitchActiveOrganization',
-    summary: 'Switch Active Organization',
+    operationId: 'mobileAuthSwitchActiveWorkspace',
+    summary: 'Switch Active Workspace',
     description:
-      'Reissue access token with active organization permission map for selected organization.',
+      'Reissue access token with active workspace permission map for selected workspace.',
   })
   @ApiBody({
-    type: SwitchActiveOrganizationDto,
-    description: 'Active organization switch payload.',
+    type: SwitchActiveWorkspaceDto,
+    description: 'Active workspace switch payload.',
   })
   @ApiOkResponse({
-    type: SwitchActiveOrganizationResponseDto,
-    description:
-      'Active organization switched and token reissued successfully.',
+    type: SwitchActiveWorkspaceResponseDto,
+    description: 'Active workspace switched and token reissued successfully.',
   })
-  async switchActiveOrganization(
+  async switchActiveWorkspace(
     @CurrentUser() currentUser: AuthJwtPayload,
-    @Body() dto: SwitchActiveOrganizationDto,
+    @Body() dto: SwitchActiveWorkspaceDto,
   ) {
-    const result = await this.authService.switchActiveOrganization(
+    const result = await this.authService.switchActiveWorkspace(
       currentUser.sub,
       'mobile',
       currentUser.sessionId,
-      dto.organizationId ?? null,
+      dto.workspaceId ?? null,
     );
 
     return {
       ...toAuthTokenResponse(result),
-      activeOrganizationId: result.activeOrganizationId ?? null,
+      activeWorkspaceId: result.activeWorkspaceId ?? null,
     };
   }
 }

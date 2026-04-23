@@ -39,7 +39,7 @@ export class AuditAdminController {
     operationId: 'adminAuditListGlobal',
     summary: 'List Global Audit Events',
     description:
-      'List global and organization audit events for superadmin with optional filters.',
+      'List global and workspace audit events for superadmin with optional filters.',
   })
   @ApiOkResponse({
     type: AdminAuditResponseDto,
@@ -49,26 +49,26 @@ export class AuditAdminController {
     return this.auditService.listAdminAudit(query);
   }
 
-  @Get('organizations/:organizationId')
+  @Get('workspaces/:workspaceId')
   @RequirePermission({
     scope: PermissionScope.platform,
     resource: PlatformPermissionResource.AUDIT,
     action: PermissionAction.read,
   })
   @ApiOperation({
-    operationId: 'adminAuditListOrganization',
-    summary: 'List Organization Audit Events',
+    operationId: 'adminAuditListWorkspace',
+    summary: 'List Workspace Audit Events',
     description:
-      'List audit events for a specific organization, filtered further by optional query params.',
+      'List audit events for a specific workspace, filtered further by optional query params.',
   })
   @ApiOkResponse({
     type: AdminAuditResponseDto,
-    description: 'Organization audit records returned successfully.',
+    description: 'Workspace audit records returned successfully.',
   })
-  listForOrganization(
-    @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
+  listForWorkspace(
+    @Param('workspaceId', new ParseUUIDPipe()) workspaceId: string,
     @Query() query: AdminAuditQueryDto,
   ) {
-    return this.auditService.listAdminAudit(query, organizationId);
+    return this.auditService.listAdminAudit(query, workspaceId);
   }
 }

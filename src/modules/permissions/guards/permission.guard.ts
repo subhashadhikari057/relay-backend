@@ -62,12 +62,8 @@ export class PermissionGuard implements CanActivate {
       throw new ForbiddenException('Insufficient permissions');
     }
 
-    if (required.scope === PermissionScope.organization) {
-      this.assertActiveOrganizationMatchesRequest(
-        user,
-        request,
-        required.action,
-      );
+    if (required.scope === PermissionScope.workspace) {
+      this.assertActiveWorkspaceMatchesRequest(user, request, required.action);
     }
 
     return true;
@@ -81,34 +77,34 @@ export class PermissionGuard implements CanActivate {
       return user.platformPermissions ?? {};
     }
 
-    return user.organizationPermissions ?? {};
+    return user.workspacePermissions ?? {};
   }
 
-  private assertActiveOrganizationMatchesRequest(
+  private assertActiveWorkspaceMatchesRequest(
     user: AuthJwtPayload,
     request: Request,
     action: PermissionAction,
   ) {
-    const requestOrganizationId = this.extractRequestOrganizationId(request);
-    if (!requestOrganizationId) {
+    const requestWorkspaceId = this.extractRequestWorkspaceId(request);
+    if (!requestWorkspaceId) {
       return;
     }
 
-    if (!user.activeOrganizationId) {
+    if (!user.activeWorkspaceId) {
       throw new ForbiddenException(
-        'No active organization selected. Switch organization and try again.',
+        'No active workspace selected. Switch workspace and try again.',
       );
     }
 
-    if (user.activeOrganizationId !== requestOrganizationId) {
+    if (user.activeWorkspaceId !== requestWorkspaceId) {
       throw new ForbiddenException(
-        `Active organization mismatch for ${action}. Switch active organization first.`,
+        `Active workspace mismatch for ${action}. Switch active workspace first.`,
       );
     }
   }
 
-  private extractRequestOrganizationId(request: Request) {
-    const raw = request.params?.organizationId;
+  private extractRequestWorkspaceId(request: Request) {
+    const raw = request.params?.workspaceId;
     if (typeof raw === 'string' && raw.length > 0) {
       return raw;
     }

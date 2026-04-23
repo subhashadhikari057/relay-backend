@@ -251,8 +251,8 @@ docker-compose up
 ## Roadmap
 
 - [x] Core API — auth, workspaces, channels, messaging
-- [ ] Threaded messaging
-- [ ] Reactions and notifications
+- [x] Threaded messaging
+- [x] Reactions and notifications
 - [ ] Redis integration — caching + pub/sub
 - [ ] WebSocket real-time messaging
 - [ ] File storage integration
