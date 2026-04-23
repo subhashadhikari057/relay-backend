@@ -14,6 +14,7 @@ Current design goals:
 - Use **opaque refresh token** in HttpOnly cookie
 - Bind access token to DB session via `sessionId`
 - Support immediate revocation through session checks
+- Support local password auth plus Google account login/linking
 - Enforce env-driven session limits with auto-eviction
 
 ---
@@ -84,11 +85,44 @@ If refresh token hash collides on unique key:
 
 - `POST /api/mobile/auth/signup`
 - `POST /api/mobile/auth/login`
+- `POST /api/mobile/auth/google`
 - `POST /api/mobile/auth/refresh`
 - `POST /api/mobile/auth/logout`
 - `GET /api/mobile/auth/me`
 - `POST /api/mobile/auth/verify-email/request`
 - `POST /api/mobile/auth/verify-email/confirm`
+
+### Google Login
+
+Endpoint:
+- `POST /api/mobile/auth/google`
+
+Request:
+- `idToken`
+  - Google ID token from frontend Google Sign-In SDK
+  - backend verifies token server-side using `GOOGLE_CLIENT_ID`
+
+Behavior:
+- Existing Google-linked account logs in immediately.
+- Existing local account with same verified email is linked automatically.
+- New Google user is created with:
+  - `passwordHash = null`
+  - `platformRole = user`
+  - `emailVerifiedAt = now`
+  - `avatarUrl = Google picture` when provided
+- Existing profile fields are not aggressively overwritten.
+  - avatar is filled only when missing
+  - display name is filled only when missing
+- Response is the same shape as local login:
+  - access token in JSON
+  - refresh token cookie
+  - sid cookie
+
+Security rules:
+- backend never trusts frontend email directly
+- Google token signature and audience are verified server-side
+- Google email must be verified
+- account linkage uses Google `sub` as provider account id
 
 ### Mobile Session Management
 
@@ -114,6 +148,8 @@ If refresh token hash collides on unique key:
   - Admin auth transport layer + Swagger contract
 - `src/modules/auth/mobile/auth.mobile.controller.ts`
   - Mobile auth transport layer + Swagger contract
+- `src/modules/auth/mobile/google-auth.mobile.controller.ts`
+  - Mobile Google login transport layer + Swagger contract
 
 ### Shared services
 
@@ -138,6 +174,8 @@ If refresh token hash collides on unique key:
   - Current dev fallback (logs verification link)
 - `src/modules/auth/shared/services/session-notification.service.ts`
   - Session eviction notification hook (current placeholder logger)
+- `src/modules/auth/mobile/services/google-auth.service.ts`
+  - Google ID token verification, user creation/linking, profile hydration, and login orchestration
 
 ### Guards/decorators
 
@@ -184,6 +222,12 @@ If refresh token hash collides on unique key:
 - `EMAIL_VERIFICATION_TOKEN_EXPIRES_IN`
 - `EMAIL_VERIFICATION_URL_BASE`
 
+### Google login
+
+- `GOOGLE_CLIENT_ID`
+  - Optional for local startup
+  - Required when calling Google login endpoint
+
 ---
 
 ## Leftouts / Next Implementations
@@ -208,10 +252,9 @@ Planned next auth milestones:
 - Replace dev log-only delivery with SMTP/provider implementation
 - Keep dev fallback option for local/testing
 
-5. Google login / account linking
-- Add `auth_accounts` linkage flow
-- Support login/link/unlink rules
-- Handle local+google coexistence safely
+5. Forgot/reset password token table consolidation
+- Current email verification token flow is separate
+- Password reset should add its own token flow or a typed token table later
 
 ---
 

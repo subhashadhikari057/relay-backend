@@ -16,6 +16,7 @@ export const envSchema = z.object({
   AUTH_COOKIE_DOMAIN: z.string().optional(),
   AUTH_MAX_ACTIVE_SESSIONS_PER_USER: z.string().default('0'),
   AUTH_SESSION_TOUCH_INTERVAL_SECONDS: z.string().default('300'),
+  GOOGLE_CLIENT_ID: z.string().optional(),
   EMAIL_VERIFICATION_TOKEN_EXPIRES_IN: z.string().default('20m'),
   EMAIL_VERIFICATION_URL_BASE: z.string().url(),
   MESSAGE_EDIT_WINDOW_MINUTES: z.string().default('30'),

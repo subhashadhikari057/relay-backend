@@ -87,6 +87,12 @@ export class AuthService {
       throw new ForbiddenException('User is inactive');
     }
 
+    if (!user.passwordHash) {
+      throw new UnauthorizedException(
+        'Password login is not available for this account',
+      );
+    }
+
     const matched = await this.passwordService.verifyPassword(
       user.passwordHash,
       dto.password,
@@ -408,6 +414,10 @@ export class AuthService {
       }),
     );
     return result;
+  }
+
+  issueAuthenticatedSession(user: User, context: AuthContext) {
+    return this.issueTokensAndSession(user, context);
   }
 
   private async issueTokensAndSession(user: User, context: AuthContext) {

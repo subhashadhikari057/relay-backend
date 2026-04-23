@@ -28,6 +28,7 @@ export default () => ({
       process.env.AUTH_SESSION_TOUCH_INTERVAL_SECONDS ?? '300',
       10,
     ),
+    googleClientId: process.env.GOOGLE_CLIENT_ID,
     emailVerificationTokenExpiresIn:
       process.env.EMAIL_VERIFICATION_TOKEN_EXPIRES_IN ?? '20m',
     emailVerificationUrlBase:

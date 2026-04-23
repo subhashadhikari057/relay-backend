@@ -4,6 +4,8 @@ import { AuditModule } from '../audit/audit.module';
 import { PermissionsModule } from '../permissions/permissions.module';
 import { AdminAuthController } from './admin/auth.admin.controller';
 import { MobileAuthController } from './mobile/auth.mobile.controller';
+import { MobileGoogleAuthController } from './mobile/google-auth.mobile.controller';
+import { GoogleAuthService } from './mobile/services/google-auth.service';
 import { AuthCookieService } from './shared/services/auth-cookie.service';
 import { AuthService } from './shared/services/auth.service';
 import { EmailDeliveryService } from './shared/services/email-delivery.service';
@@ -22,7 +24,11 @@ import { PlatformRoleGuard } from './shared/guards/platform-role.guard';
     forwardRef(() => AuditModule),
     forwardRef(() => PermissionsModule),
   ],
-  controllers: [AdminAuthController, MobileAuthController],
+  controllers: [
+    AdminAuthController,
+    MobileAuthController,
+    MobileGoogleAuthController,
+  ],
   providers: [
     AuthService,
     PasswordService,
@@ -33,6 +39,7 @@ import { PlatformRoleGuard } from './shared/guards/platform-role.guard';
     TokenVersionService,
     EmailVerificationService,
     EmailDeliveryService,
+    GoogleAuthService,
     AccessTokenGuard,
     PlatformRoleGuard,
   ],

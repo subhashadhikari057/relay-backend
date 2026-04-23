@@ -16,6 +16,11 @@ enum PlatformRole {
   user
 }
 
+enum AuthProvider {
+  local
+  google
+}
+
 enum WorkspaceRole {
   owner
   admin
@@ -61,7 +66,7 @@ enum PermissionPolicyRole {
 model User {
   id            String                   @id @default(uuid()) @db.Uuid
   email         String                   @unique @db.Citext
-  passwordHash  String                   @map("password_hash")
+  passwordHash  String?                  @map("password_hash")
   fullName      String                   @map("full_name") @db.VarChar(255)
   displayName   String?                  @map("display_name") @db.VarChar(80)
   avatarUrl     String?                  @map("avatar_url")
@@ -75,6 +80,7 @@ model User {
   updatedAt     DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   sessions                Session[]
+  authAccounts            AuthAccount[]
   emailVerificationTokens EmailVerificationToken[]
   channelsCreated         Channel[]          @relation("channel_created_by")
   channelMemberships      ChannelMember[]
@@ -92,6 +98,21 @@ model User {
   auditActorLogs           AuditLog[]                @relation("audit_actor_user")
 
   @@map("users")
+}
+
+model AuthAccount {
+  id                String       @id @default(uuid()) @db.Uuid
+  userId            String       @map("user_id") @db.Uuid
+  provider          AuthProvider
+  providerAccountId String       @map("provider_account_id") @db.VarChar(255)
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("auth_accounts")
 }
 
 model Session {
