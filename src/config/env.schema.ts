@@ -15,7 +15,7 @@ export const envSchema = z.object({
   SESSION_COOKIE_NAME: z.string().default('relay_sid'),
   AUTH_COOKIE_SAME_SITE: z.enum(['lax', 'strict', 'none']).default('lax'),
   AUTH_COOKIE_SECURE: z.enum(['true', 'false']).optional(),
-  AUTH_COOKIE_PATH: z.string().default('/api'),
+  AUTH_COOKIE_PATH: z.string().default('/'),
   AUTH_COOKIE_DOMAIN: z.string().optional(),
   AUTH_MAX_ACTIVE_SESSIONS_PER_USER: z.string().default('0'),
   AUTH_SESSION_TOUCH_INTERVAL_SECONDS: z.string().default('300'),

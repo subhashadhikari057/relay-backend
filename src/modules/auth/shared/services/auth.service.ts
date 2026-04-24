@@ -188,6 +188,63 @@ export class AuthService {
       refreshToken: nextRefreshToken,
       sessionId: session.id,
       user: this.toSafeUser(user),
+      activeWorkspaceId: session.activeWorkspaceId,
+      activeWorkspace: await this.resolveActiveWorkspaceSummary(
+        user.id,
+        session.activeWorkspaceId,
+      ),
+    };
+  }
+
+  async restoreSession(
+    sessionId: string,
+    refreshToken: string,
+    audience: AuthAudience,
+  ) {
+    const session = await this.sessionService.findActiveSessionById(sessionId);
+    if (!session) {
+      throw new UnauthorizedException('Refresh session is invalid');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: session.userId },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.isActive) {
+      throw new ForbiddenException('User is inactive');
+    }
+
+    this.assertAudienceRole(user, audience);
+
+    const isRefreshTokenMatch = this.sessionService.isRefreshTokenMatch(
+      refreshToken,
+      session.tokenHash,
+    );
+
+    if (!isRefreshTokenMatch) {
+      throw new UnauthorizedException('Refresh session is invalid');
+    }
+
+    await this.sessionService.touchSessionActivity(session.id);
+
+    const payload = await this.buildJwtPayload({
+      user,
+      sessionId: session.id,
+      activeWorkspaceId: session.activeWorkspaceId,
+    });
+    const accessToken = await this.tokenService.createAccessToken(payload);
+
+    return {
+      accessToken,
+      user: this.toSafeUser(user),
+      activeWorkspaceId: session.activeWorkspaceId,
+      activeWorkspace: await this.resolveActiveWorkspaceSummary(
+        user.id,
+        session.activeWorkspaceId,
+      ),
     };
   }
 
@@ -447,6 +504,10 @@ export class AuthService {
       sessionId: sessionWithToken.session.id,
       user: this.toSafeUser(user),
       activeWorkspaceId: sessionWithToken.session.activeWorkspaceId,
+      activeWorkspace: await this.resolveActiveWorkspaceSummary(
+        user.id,
+        sessionWithToken.session.activeWorkspaceId,
+      ),
     };
   }
 
@@ -622,6 +683,57 @@ export class AuthService {
     }
 
     return workspaceId;
+  }
+
+  private async resolveActiveWorkspaceSummary(
+    userId: string,
+    workspaceId?: string | null,
+  ) {
+    if (!workspaceId) {
+      return null;
+    }
+
+    const membership = await this.prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId,
+          userId,
+        },
+      },
+      include: {
+        workspace: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            description: true,
+            avatarUrl: true,
+            avatarColor: true,
+            isActive: true,
+            deletedAt: true,
+          },
+        },
+      },
+    });
+
+    if (
+      !membership ||
+      !membership.isActive ||
+      !membership.workspace.isActive ||
+      membership.workspace.deletedAt
+    ) {
+      return null;
+    }
+
+    return {
+      id: membership.workspace.id,
+      name: membership.workspace.name,
+      slug: membership.workspace.slug,
+      description: membership.workspace.description,
+      avatarUrl: membership.workspace.avatarUrl,
+      avatarColor: membership.workspace.avatarColor,
+      role: membership.role,
+    };
   }
 
   private async buildJwtPayload(input: {

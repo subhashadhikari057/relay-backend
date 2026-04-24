@@ -30,7 +30,7 @@ export default () => ({
       process.env.AUTH_COOKIE_SECURE !== undefined
         ? process.env.AUTH_COOKIE_SECURE === 'true'
         : process.env.NODE_ENV === 'production',
-    cookiePath: process.env.AUTH_COOKIE_PATH ?? '/api',
+    cookiePath: process.env.AUTH_COOKIE_PATH ?? '/',
     cookieDomain: process.env.AUTH_COOKIE_DOMAIN,
     maxActiveSessionsPerUser: parseInt(
       process.env.AUTH_MAX_ACTIVE_SESSIONS_PER_USER ?? '0',

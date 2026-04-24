@@ -142,6 +142,32 @@ export class MobileAuthController {
     );
   }
 
+  @Post('session')
+  @ApiOperation({
+    operationId: 'mobileAuthSession',
+    summary: 'Restore Mobile Session',
+    description:
+      'Return an access token from valid HttpOnly refresh/session cookies without rotating refresh cookies.',
+  })
+  @ApiCookieAuth('relay_refresh_token')
+  @ApiCookieAuth('relay_sid')
+  @ApiOkResponse({
+    type: AuthTokenResponseDto,
+    description: 'Mobile session restored successfully.',
+  })
+  async session(@Req() request: Request) {
+    const { refreshToken, sessionId } =
+      this.authCookieService.getRefreshCookiePairOrThrow(request.cookies);
+
+    const result = await this.authService.restoreSession(
+      sessionId,
+      refreshToken,
+      'mobile',
+    );
+
+    return toAuthTokenResponse(result);
+  }
+
   @Post('logout')
   @ApiOperation({
     operationId: 'mobileAuthLogout',
