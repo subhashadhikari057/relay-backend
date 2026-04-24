@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import path from 'node:path';
 import { UploadContextDto } from '../dto/upload-context.dto';
+import { UploadFileItemDto } from '../dto/upload-file-item.dto';
 import { UploadMultipleResponseDto } from '../dto/upload-multiple-response.dto';
 import { UploadSingleResponseDto } from '../dto/upload-single-response.dto';
 import {
@@ -9,6 +10,7 @@ import {
   ALLOWED_UPLOAD_MIME_TYPES,
   UPLOAD_STORAGE_PROVIDER,
 } from '../constants/upload.constants';
+import { StoredUploadFile } from '../interfaces/stored-upload-file.interface';
 import type { UploadStorageProvider } from '../interfaces/upload-storage-provider.interface';
 import { UploadedFileLike } from '../interfaces/uploaded-file.interface';
 
@@ -39,7 +41,7 @@ export class UploadService {
     );
 
     return {
-      file: uploadedFile,
+      file: this.withPublicUrl(uploadedFile),
     };
   }
 
@@ -63,7 +65,18 @@ export class UploadService {
 
     return {
       count: uploadedFiles.length,
-      files: uploadedFiles,
+      files: uploadedFiles.map((file) => this.withPublicUrl(file)),
+    };
+  }
+
+  private withPublicUrl(file: StoredUploadFile): UploadFileItemDto {
+    const publicBaseUrl = (
+      this.configService.get<string>('public.baseUrl') ?? 'http://localhost:3000'
+    ).replace(/\/$/, '');
+
+    return {
+      ...file,
+      url: `${publicBaseUrl}/${file.path.replace(/^\/+/, '')}`,
     };
   }
 

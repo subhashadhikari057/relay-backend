@@ -176,11 +176,13 @@ export class CompleteOnboardingDto {
   @Type(() => OnboardingInviteDto)
   invites?: OnboardingInviteDto[];
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     type: OnboardingFirstChannelDto,
-    description: 'First channel to create inside the workspace.',
+    description:
+      'Optional customization for the default first public channel created during onboarding.',
   })
+  @IsOptional()
   @ValidateNested()
   @Type(() => OnboardingFirstChannelDto)
-  firstChannel!: OnboardingFirstChannelDto;
+  firstChannel?: OnboardingFirstChannelDto;
 }

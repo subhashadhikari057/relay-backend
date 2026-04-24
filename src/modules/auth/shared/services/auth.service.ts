@@ -446,6 +446,7 @@ export class AuthService {
       refreshToken: sessionWithToken.refreshToken,
       sessionId: sessionWithToken.session.id,
       user: this.toSafeUser(user),
+      activeWorkspaceId: sessionWithToken.session.activeWorkspaceId,
     };
   }
 

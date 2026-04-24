@@ -1,6 +1,9 @@
 export default () => ({
   nodeEnv: process.env.NODE_ENV ?? 'development',
   port: parseInt(process.env.PORT ?? '3000', 10),
+  public: {
+    baseUrl: process.env.BACKEND_PUBLIC_URL ?? 'http://localhost:3000',
+  },
   frontend: {
     origins: (
       process.env.FRONTEND_ORIGINS ??

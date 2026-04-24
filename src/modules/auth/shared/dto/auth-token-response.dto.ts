@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { AuthUserResponseDto } from './auth-user-response.dto';
 
 export class AuthTokenResponseDto {
@@ -14,4 +15,12 @@ export class AuthTokenResponseDto {
     type: AuthUserResponseDto,
   })
   user!: AuthUserResponseDto;
+
+  @ApiPropertyOptional({
+    description:
+      'Active workspace id for the authenticated session. Null when onboarding is not completed yet.',
+    example: '2f9856f3-1af5-4d91-8d2c-2f5b2f8cb641',
+    nullable: true,
+  })
+  activeWorkspaceId?: string | null;
 }

@@ -26,6 +26,10 @@ import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
 import { WorkspaceInviteResponseDto } from 'src/modules/workspaces/shared/dto/workspace-invite-response.dto';
 
 type Tx = Prisma.TransactionClient;
+const DEFAULT_CHANNEL_NAME = 'general';
+const DEFAULT_CHANNEL_TOPIC = 'Team-wide updates and announcements';
+const DEFAULT_CHANNEL_DESCRIPTION =
+  'Default public channel for everyone in the workspace.';
 
 @Injectable()
 export class OnboardingMobileService {
@@ -51,7 +55,9 @@ export class OnboardingMobileService {
     });
 
     if (activeMemberships > 0) {
-      throw new ConflictException('User has already completed onboarding');
+      throw new ConflictException(
+        'Onboarding already completed. Please sign in.',
+      );
     }
 
     const normalizedInvites = this.normalizeInvites(dto.invites ?? [], user);
@@ -81,14 +87,17 @@ export class OnboardingMobileService {
         },
       });
 
+      const firstChannelInput = dto.firstChannel;
       const channel = await tx.channel.create({
         data: {
           workspaceId: workspace.id,
           createdById: user.sub,
-          name: dto.firstChannel.name.trim(),
-          topic: dto.firstChannel.topic?.trim(),
-          description: dto.firstChannel.description?.trim(),
-          type: dto.firstChannel.type ?? ChannelType.public,
+          name: firstChannelInput?.name.trim() || DEFAULT_CHANNEL_NAME,
+          topic: firstChannelInput?.topic?.trim() || DEFAULT_CHANNEL_TOPIC,
+          description:
+            firstChannelInput?.description?.trim() ||
+            DEFAULT_CHANNEL_DESCRIPTION,
+          type: ChannelType.public,
         },
         include: {
           members: {

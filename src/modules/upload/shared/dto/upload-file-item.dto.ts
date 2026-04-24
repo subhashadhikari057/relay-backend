@@ -9,6 +9,13 @@ export class UploadFileItemDto {
   path!: string;
 
   @ApiProperty({
+    description: 'Public URL for the uploaded file.',
+    example:
+      'http://localhost:3000/uploads/2026/04/22/a3fe8d3f-f1a2-4f31-bf7f-c0f5b9a1d2e8.jpg',
+  })
+  url!: string;
+
+  @ApiProperty({
     description: 'Stored file name.',
     example: 'a3fe8d3f-f1a2-4f31-bf7f-c0f5b9a1d2e8.jpg',
   })

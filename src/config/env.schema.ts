@@ -23,6 +23,7 @@ export const envSchema = z.object({
   EMAIL_VERIFICATION_TOKEN_EXPIRES_IN: z.string().default('20m'),
   EMAIL_VERIFICATION_URL_BASE: z.string().url(),
   MESSAGE_EDIT_WINDOW_MINUTES: z.string().default('30'),
+  BACKEND_PUBLIC_URL: z.string().url().default('http://localhost:3000'),
   UPLOAD_LOCAL_ROOT: z.string().default('uploads'),
   UPLOAD_ENABLE_SCAN: z.enum(['true', 'false']).default('false'),
 });

@@ -23,9 +23,4 @@ export class CompleteOnboardingResponseDto extends AuthTokenResponseDto {
   })
   invites!: WorkspaceInviteResponseDto[];
 
-  @ApiProperty({
-    description: 'Workspace id activated in the returned access token.',
-    example: '01968c8b-a4fc-7a08-b3d2-4e69ec7fcbf3',
-  })
-  activeWorkspaceId!: string;
 }
