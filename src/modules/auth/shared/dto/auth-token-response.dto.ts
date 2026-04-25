@@ -32,4 +32,11 @@ export class AuthTokenResponseDto {
     nullable: true,
   })
   activeWorkspace?: WorkspaceSummaryDto | null;
+
+  @ApiProperty({
+    description:
+      'Whether the authenticated user must finish onboarding before entering the app.',
+    example: false,
+  })
+  requiresOnboarding!: boolean;
 }
