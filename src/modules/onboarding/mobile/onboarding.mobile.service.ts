@@ -88,37 +88,83 @@ export class OnboardingMobileService {
       });
 
       const firstChannelInput = dto.firstChannel;
-      const channel = await tx.channel.create({
-        data: {
+      const normalizedFirstChannelName = firstChannelInput?.name
+        ?.trim()
+        .toLowerCase();
+      const customizeGeneral = normalizedFirstChannelName === DEFAULT_CHANNEL_NAME;
+
+      // Invariant: every workspace has a #general channel for everyone.
+      const generalChannel = await tx.channel.upsert({
+        where: {
+          workspaceId_name: {
+            workspaceId: workspace.id,
+            name: DEFAULT_CHANNEL_NAME,
+          },
+        },
+        update: customizeGeneral
+          ? {
+              topic: firstChannelInput?.topic?.trim() || DEFAULT_CHANNEL_TOPIC,
+              description:
+                firstChannelInput?.description?.trim() ||
+                DEFAULT_CHANNEL_DESCRIPTION,
+            }
+          : {},
+        create: {
           workspaceId: workspace.id,
           createdById: user.sub,
-          name: firstChannelInput?.name.trim() || DEFAULT_CHANNEL_NAME,
-          topic: firstChannelInput?.topic?.trim() || DEFAULT_CHANNEL_TOPIC,
-          description:
-            firstChannelInput?.description?.trim() ||
-            DEFAULT_CHANNEL_DESCRIPTION,
+          name: DEFAULT_CHANNEL_NAME,
+          topic: customizeGeneral
+            ? firstChannelInput?.topic?.trim() || DEFAULT_CHANNEL_TOPIC
+            : DEFAULT_CHANNEL_TOPIC,
+          description: customizeGeneral
+            ? firstChannelInput?.description?.trim() ||
+              DEFAULT_CHANNEL_DESCRIPTION
+            : DEFAULT_CHANNEL_DESCRIPTION,
           type: ChannelType.public,
-        },
-        include: {
-          members: {
-            select: { userId: true },
-          },
-          _count: {
-            select: { members: true },
-          },
         },
       });
 
-      await tx.channelMember.create({
-        data: {
-          channelId: channel.id,
+      await tx.channelMember.upsert({
+        where: {
+          channelId_userId: {
+            channelId: generalChannel.id,
+            userId: user.sub,
+          },
+        },
+        update: { role: ChannelMemberRole.admin },
+        create: {
+          channelId: generalChannel.id,
           userId: user.sub,
           role: ChannelMemberRole.admin,
         },
       });
 
-      const channelForResponse = await tx.channel.findUniqueOrThrow({
-        where: { id: channel.id },
+      let additionalChannelId: string | null = null;
+      if (firstChannelInput && !customizeGeneral) {
+        const additional = await tx.channel.create({
+          data: {
+            workspaceId: workspace.id,
+            createdById: user.sub,
+            name: firstChannelInput.name.trim(),
+            topic: firstChannelInput.topic?.trim() || null,
+            description: firstChannelInput.description?.trim() || null,
+            type: ChannelType.public,
+          },
+        });
+
+        await tx.channelMember.create({
+          data: {
+            channelId: additional.id,
+            userId: user.sub,
+            role: ChannelMemberRole.admin,
+          },
+        });
+
+        additionalChannelId = additional.id;
+      }
+
+      const generalChannelForResponse = await tx.channel.findUniqueOrThrow({
+        where: { id: generalChannel.id },
         include: {
           members: {
             select: { userId: true },
@@ -128,6 +174,16 @@ export class OnboardingMobileService {
           },
         },
       });
+
+      const additionalChannelForResponse = additionalChannelId
+        ? await tx.channel.findUniqueOrThrow({
+            where: { id: additionalChannelId },
+            include: {
+              members: { select: { userId: true } },
+              _count: { select: { members: true } },
+            },
+          })
+        : null;
 
       const invites: WorkspaceInviteResponseDto[] = [];
       for (const invite of normalizedInvites) {
@@ -160,7 +216,10 @@ export class OnboardingMobileService {
           avatarColor: workspace.avatarColor,
           role: WorkspaceRole.owner,
         },
-        firstChannel: this.mapChannel(channelForResponse, user.sub),
+        firstChannel: this.mapChannel(generalChannelForResponse, user.sub),
+        additionalChannel: additionalChannelForResponse
+          ? this.mapChannel(additionalChannelForResponse, user.sub)
+          : null,
         invites,
       };
     });
@@ -194,6 +253,24 @@ export class OnboardingMobileService {
           },
         }),
       ),
+      ...(result.additionalChannel
+        ? [
+            this.auditService.recordSafe(
+              this.auditEventFactory.build({
+                workspaceId: result.workspace.id,
+                actorUserId: user.sub,
+                action: AuditAction.WORKSPACE_CHANNEL_CREATED,
+                entityType: AuditEntityType.CHANNEL,
+                entityId: result.additionalChannel.id,
+                metadata: {
+                  source: 'onboarding',
+                  name: result.additionalChannel.name,
+                  type: result.additionalChannel.type,
+                },
+              }),
+            ),
+          ]
+        : []),
       ...result.invites.map((invite) =>
         this.auditService.recordSafe(
           this.auditEventFactory.build({

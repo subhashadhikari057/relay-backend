@@ -589,6 +589,39 @@ export class WorkspaceMobileService {
         });
       }
 
+      // Keep the "Default public channel for everyone" invariant: invited members should
+      // be able to post in #general without an extra explicit join step.
+      const generalChannel = await tx.channel.upsert({
+        where: {
+          workspaceId_name: {
+            workspaceId: invite.workspaceId,
+            name: 'general',
+          },
+        },
+        update: {},
+        create: {
+          workspaceId: invite.workspaceId,
+          createdById: invite.invitedById ?? user.sub,
+          name: 'general',
+          type: ChannelType.public,
+        },
+      });
+
+      await tx.channelMember.upsert({
+        where: {
+          channelId_userId: {
+            channelId: generalChannel.id,
+            userId: user.sub,
+          },
+        },
+        update: {},
+        create: {
+          channelId: generalChannel.id,
+          userId: user.sub,
+          role: ChannelMemberRole.member,
+        },
+      });
+
       await tx.workspaceInvite.update({
         where: { id: invite.id },
         data: { acceptedAt: new Date() },

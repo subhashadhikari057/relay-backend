@@ -106,8 +106,9 @@ export class OnboardingInviteDto {
 
 export class OnboardingFirstChannelDto {
   @ApiProperty({
-    description: 'First channel display name.',
-    example: 'general',
+    description:
+      'Optional additional channel name to create during onboarding. The workspace always includes #general.',
+    example: 'engineering',
     minLength: 2,
     maxLength: 80,
   })
