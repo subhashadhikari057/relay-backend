@@ -51,6 +51,12 @@ export default () => ({
     localRoot: process.env.UPLOAD_LOCAL_ROOT ?? 'uploads',
     enableScan: process.env.UPLOAD_ENABLE_SCAN === 'true',
   },
+  email: {
+    provider: process.env.EMAIL_PROVIDER ?? 'console',
+    from: process.env.EMAIL_FROM,
+    resendApiKey: process.env.RESEND_API_KEY,
+    inviteUrlBase: process.env.INVITE_URL_BASE ?? 'http://localhost:8080',
+  },
   messages: {
     editWindowMinutes: parseInt(
       process.env.MESSAGE_EDIT_WINDOW_MINUTES ?? '30',

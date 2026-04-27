@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import {
   ChannelMemberRole,
@@ -11,6 +12,7 @@ import {
   WorkspaceRole,
   Prisma,
 } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes } from 'crypto';
 import { toSkipTake } from 'src/common/utils/pagination.util';
 import { AuditService } from 'src/modules/audit/audit.service';
@@ -25,6 +27,8 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { PermissionsPolicyService } from 'src/modules/permissions/services/permissions-policy.service';
 import { SystemMessageEvent } from 'src/modules/system-messages/system-message.constants';
 import { SystemMessageService } from 'src/modules/system-messages/system-message.service';
+import { EmailService } from 'src/modules/email/email.service';
+import { AuthService } from 'src/modules/auth/shared/services/auth.service';
 import { WorkspacePolicyService } from '../shared/services/workspace-policy.service';
 import { toWorkspaceInviteDto } from '../shared/utils/invite-mapper.util';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
@@ -36,6 +40,8 @@ import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 
 @Injectable()
 export class WorkspaceMobileService {
+  private readonly logger = new Logger(WorkspaceMobileService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly workspacePolicyService: WorkspacePolicyService,
@@ -43,6 +49,9 @@ export class WorkspaceMobileService {
     private readonly auditService: AuditService,
     private readonly auditEventFactory: AuditEventFactory,
     private readonly systemMessageService: SystemMessageService,
+    private readonly emailService: EmailService,
+    private readonly configService: ConfigService,
+    private readonly authService: AuthService,
   ) {}
 
   async createWorkspace(userId: string, dto: CreateWorkspaceDto) {
@@ -403,6 +412,45 @@ export class WorkspaceMobileService {
       }),
     );
 
+    // Email sending should not block invite creation. If provider is misconfigured in dev,
+    // we still return a valid invite token so the UI can show/copy the link.
+    try {
+      const [workspace, actor] = await Promise.all([
+        this.prisma.workspace.findUnique({
+          where: { id: workspaceId },
+          select: { name: true },
+        }),
+        this.prisma.user.findUnique({
+          where: { id: user.sub },
+          select: { email: true, displayName: true, fullName: true },
+        }),
+      ]);
+
+      const inviteUrlBaseRaw =
+        this.configService.get<string>('email.inviteUrlBase') ??
+        'http://localhost:8080';
+      const inviteUrlBase = inviteUrlBaseRaw.replace(/\/$/, '');
+      const inviteUrl = `${inviteUrlBase}/join/${inviteToken}`;
+
+      const invitedByName =
+        actor?.displayName?.trim() ||
+        actor?.fullName?.trim() ||
+        actor?.email?.split('@')[0] ||
+        user.email.split('@')[0];
+
+      await this.emailService.sendWorkspaceInvite({
+        toEmail: normalizedEmail,
+        workspaceName: workspace?.name ?? 'your workspace',
+        invitedByName,
+        inviteUrl,
+        expiresAt,
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Failed to send workspace invite email to ${normalizedEmail}: ${(err as Error)?.message ?? String(err)}`,
+      );
+    }
+
     return {
       inviteId: invite.id,
       inviteToken,
@@ -649,10 +697,21 @@ export class WorkspaceMobileService {
       },
     });
 
+    const auth = await this.authService.switchActiveWorkspace(
+      user.sub,
+      'mobile',
+      user.sessionId,
+      invite.workspaceId,
+    );
+
     return {
       success: true,
       workspaceId: invite.workspaceId,
       role: invite.role,
+      accessToken: auth.accessToken,
+      user: auth.user,
+      activeWorkspaceId: auth.activeWorkspaceId,
+      requiresOnboarding: false,
     };
   }
 

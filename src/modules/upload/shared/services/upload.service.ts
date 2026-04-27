@@ -71,7 +71,8 @@ export class UploadService {
 
   private withPublicUrl(file: StoredUploadFile): UploadFileItemDto {
     const publicBaseUrl = (
-      this.configService.get<string>('public.baseUrl') ?? 'http://localhost:3000'
+      this.configService.get<string>('public.baseUrl') ??
+      'http://localhost:3000'
     ).replace(/\/$/, '');
 
     return {

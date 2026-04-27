@@ -22,5 +22,4 @@ export class CompleteOnboardingResponseDto extends AuthTokenResponseDto {
     description: 'Created invites with one-time tokens.',
   })
   invites!: WorkspaceInviteResponseDto[];
-
 }

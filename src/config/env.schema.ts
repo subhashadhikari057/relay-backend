@@ -26,4 +26,9 @@ export const envSchema = z.object({
   BACKEND_PUBLIC_URL: z.string().url().default('http://localhost:3000'),
   UPLOAD_LOCAL_ROOT: z.string().default('uploads'),
   UPLOAD_ENABLE_SCAN: z.enum(['true', 'false']).default('false'),
+
+  INVITE_URL_BASE: z.string().url().default('http://localhost:8080'),
+  EMAIL_PROVIDER: z.enum(['console', 'resend']).default('resend'),
+  EMAIL_FROM: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
 });

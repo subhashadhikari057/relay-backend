@@ -1,7 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { WorkspaceRole } from '@prisma/client';
+import { AuthTokenResponseDto } from 'src/modules/auth/shared/dto/auth-token-response.dto';
 
-export class WorkspaceInviteAcceptResponseDto {
+export class WorkspaceInviteAcceptResponseDto extends AuthTokenResponseDto {
   @ApiProperty({
     description: 'Whether invite acceptance was successful.',
     example: true,

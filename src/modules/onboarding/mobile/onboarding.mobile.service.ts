@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
 } from '@nestjs/common';
 import {
   ChannelMemberRole,
@@ -10,6 +11,7 @@ import {
   WorkspaceRole,
 } from '@prisma/client';
 import { createHash, randomBytes } from 'crypto';
+import { ConfigService } from '@nestjs/config';
 import { AuditService } from 'src/modules/audit/audit.service';
 import {
   AuditAction,
@@ -22,6 +24,7 @@ import { PermissionsPolicyService } from 'src/modules/permissions/services/permi
 import { SystemMessageEvent } from 'src/modules/system-messages/system-message.constants';
 import { SystemMessageService } from 'src/modules/system-messages/system-message.service';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { EmailService } from 'src/modules/email/email.service';
 import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
 import { WorkspaceInviteResponseDto } from 'src/modules/workspaces/shared/dto/workspace-invite-response.dto';
 
@@ -33,6 +36,8 @@ const DEFAULT_CHANNEL_DESCRIPTION =
 
 @Injectable()
 export class OnboardingMobileService {
+  private readonly logger = new Logger(OnboardingMobileService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
@@ -40,6 +45,8 @@ export class OnboardingMobileService {
     private readonly auditService: AuditService,
     private readonly auditEventFactory: AuditEventFactory,
     private readonly systemMessageService: SystemMessageService,
+    private readonly emailService: EmailService,
+    private readonly configService: ConfigService,
   ) {}
 
   async completeOnboarding(user: AuthJwtPayload, dto: CompleteOnboardingDto) {
@@ -91,7 +98,8 @@ export class OnboardingMobileService {
       const normalizedFirstChannelName = firstChannelInput?.name
         ?.trim()
         .toLowerCase();
-      const customizeGeneral = normalizedFirstChannelName === DEFAULT_CHANNEL_NAME;
+      const customizeGeneral =
+        normalizedFirstChannelName === DEFAULT_CHANNEL_NAME;
 
       // Invariant: every workspace has a #general channel for everyone.
       const generalChannel = await tx.channel.upsert({
@@ -227,6 +235,58 @@ export class OnboardingMobileService {
     await this.permissionsPolicyService.initializeWorkspacePolicies(
       result.workspace.id,
     );
+
+    // Send invite emails after the DB transaction commits.
+    if (normalizedInvites.length > 0 && result.invites.length > 0) {
+      try {
+        const actor = await this.prisma.user.findUnique({
+          where: { id: user.sub },
+          select: { email: true, displayName: true, fullName: true },
+        });
+
+        const inviteUrlBaseRaw =
+          this.configService.get<string>('email.inviteUrlBase') ??
+          'http://localhost:8080';
+        const inviteUrlBase = inviteUrlBaseRaw.replace(/\/$/, '');
+
+        const invitedByName =
+          actor?.displayName?.trim() ||
+          actor?.fullName?.trim() ||
+          actor?.email?.split('@')[0] ||
+          user.email.split('@')[0];
+
+        const sendResults = await Promise.allSettled(
+          result.invites.map((createdInvite, idx) => {
+            const toEmail = normalizedInvites[idx]?.email;
+            if (!toEmail) {
+              return Promise.resolve();
+            }
+
+            const inviteUrl = `${inviteUrlBase}/join/${createdInvite.inviteToken}`;
+            return this.emailService.sendWorkspaceInvite({
+              toEmail,
+              workspaceName: result.workspace.name,
+              invitedByName,
+              inviteUrl,
+              expiresAt: new Date(createdInvite.expiresAt),
+            });
+          }),
+        );
+
+        const failed = sendResults.filter(
+          (r) => r.status === 'rejected',
+        ).length;
+        if (failed > 0) {
+          this.logger.warn(
+            `Failed to send ${failed} onboarding invite email(s).`,
+          );
+        }
+      } catch (err) {
+        this.logger.warn(
+          `Failed to send onboarding invite email(s): ${(err as Error)?.message ?? String(err)}`,
+        );
+      }
+    }
 
     await Promise.all([
       this.auditService.recordSafe(
