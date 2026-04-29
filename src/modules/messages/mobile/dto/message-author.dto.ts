@@ -27,4 +27,11 @@ export class MessageAuthorDto {
     example: 'https://cdn.relay.com/avatar/u1.png',
   })
   avatarUrl!: string | null;
+
+  @ApiProperty({
+    description: 'Author avatar color.',
+    nullable: true,
+    example: '#5B5BD6',
+  })
+  avatarColor!: string | null;
 }

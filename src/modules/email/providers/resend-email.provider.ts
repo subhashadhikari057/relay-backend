@@ -13,6 +13,9 @@ type ResendEmailRequest = {
 @Injectable()
 export class ResendEmailProvider implements EmailProvider {
   private readonly logger = new Logger(ResendEmailProvider.name);
+  private static readonly MIN_SEND_INTERVAL_MS = 550;
+  private static sendQueue: Promise<void> = Promise.resolve();
+  private static lastSentAtMs = 0;
 
   constructor(private readonly configService: ConfigService) {}
 
@@ -30,29 +33,51 @@ export class ResendEmailProvider implements EmailProvider {
       return;
     }
 
-    const body: ResendEmailRequest = {
-      from,
-      to: [input.to],
-      subject: input.subject,
-      text: input.text,
-      html: input.html,
+    const sendTask = async () => {
+      const now = Date.now();
+      const elapsed = now - ResendEmailProvider.lastSentAtMs;
+      if (elapsed < ResendEmailProvider.MIN_SEND_INTERVAL_MS) {
+        await sleep(ResendEmailProvider.MIN_SEND_INTERVAL_MS - elapsed);
+      }
+
+      const body: ResendEmailRequest = {
+        from,
+        to: [input.to],
+        subject: input.subject,
+        text: input.text,
+        html: input.html,
+      };
+
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      ResendEmailProvider.lastSentAtMs = Date.now();
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        this.logger.error(
+          `Failed to send email via Resend: ${res.status} ${res.statusText} ${errText}`.trim(),
+        );
+      }
     };
 
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
+    ResendEmailProvider.sendQueue = ResendEmailProvider.sendQueue
+      .then(sendTask)
+      .catch((error: unknown) => {
+        this.logger.error(
+          `Resend queue failure: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      });
 
-    if (!res.ok) {
-      const errText = await res.text().catch(() => '');
-      this.logger.error(
-        `Failed to send email via Resend: ${res.status} ${res.statusText} ${errText}`.trim(),
-      );
-      return;
-    }
+    await ResendEmailProvider.sendQueue;
   }
+}
+
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }

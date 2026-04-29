@@ -25,6 +25,7 @@ export class MessagePresenterService {
           fullName: true,
           displayName: true,
           avatarUrl: true,
+          avatarColor: true,
         },
       },
       attachments: {
@@ -81,6 +82,7 @@ export class MessagePresenterService {
         fullName: message.sender.fullName,
         displayName: message.sender.displayName,
         avatarUrl: message.sender.avatarUrl,
+        avatarColor: message.sender.avatarColor,
       },
       attachments: message.attachments.map((attachment) => ({
         id: attachment.id,
